@@ -80,7 +80,7 @@ export default function LoginPage() {
     e.preventDefault();
     triggerHaptic('light');
     setOtpPhone(identity);
-    const newSession = 'rst_' + Math.random().toString(36).substring(2, 10);
+    const newSession = 'sess_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
     setResetSessionId(newSession);
     setShowOtpModal(true);
     setOtpStep('request');

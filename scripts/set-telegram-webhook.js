@@ -77,9 +77,9 @@ Usage:
     return;
   }
 
-  // Subcommand: register webhook with origin
+  // Subcommand: register webhook with origin (Next.js requires trailing slash when trailingSlash: true)
   const origin = arg.replace(/\/+$/, '');
-  const webhookUrl = `${origin}/api/auth/tg/webhook`;
+  const webhookUrl = `${origin}/api/auth/tg/webhook/`;
 
   console.log('1️⃣ Verifying Telegram Bot identity via getMe...');
   const meRes = await fetch(`${API_BASE}/getMe`);

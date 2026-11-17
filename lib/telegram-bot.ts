@@ -67,7 +67,7 @@ export async function createPasswordResetSession(mobile: string): Promise<{
   expiresInSeconds: number;
   demoOtp: string;
 }> {
-  const sessionId = `rst_${crypto.randomBytes(8).toString('hex')}`;
+  const sessionId = `sess_${crypto.randomBytes(16).toString('hex')}`;
   const rawOtp = Math.floor(100000 + Math.random() * 900000).toString();
   const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
 
@@ -178,16 +178,8 @@ export async function handleTelegramUpdate(update: any): Promise<{
         console.warn('[TelegramBot] Supabase update warning:', err);
       }
 
-      // Send OTP message to user
-      const otpMessage = `🔐 *StatXam Scholar Security*
-
-Hello *${fromUser}*! Here is your one-time verification code (OTP) to reset your StatXam password:
-
-👉 \`${formattedCode}\`
-_(Tap to copy: \`${otpCode}\`)_
-
-⏱ *Valid for 10 minutes.*
-⚠️ Never share this OTP with anyone. StatXam moderators will never ask for your code.`;
+      // Send OTP message to user (matches familiar StatXam format)
+      const otpMessage = `Your StatXam verification code is *${otpCode}*. Enter it on the sign-up or verification screen. It expires in a few minutes.`;
 
       await sendTelegramMessage({
         chatId,
@@ -198,9 +190,8 @@ _(Tap to copy: \`${otpCode}\`)_
       return { handled: true, action: 'otp_dispatched', chatId };
     }
 
-    // Default /start with no parameter (user searched @statxambot directly)
+    // Default /start with no parameter
     const directOtp = Math.floor(100000 + Math.random() * 900000).toString();
-    const formattedDirect = `${directOtp.slice(0, 3)} ${directOtp.slice(3)}`;
 
     localOtpSessions.set(String(chatId), {
       sessionId: String(chatId),
@@ -222,17 +213,9 @@ _(Tap to copy: \`${otpCode}\`)_
       console.warn('[TelegramBot] Supabase direct OTP insert warning:', err);
     }
 
-    const welcomeText = `👋 *Welcome to StatXam Security Bot* (@${TELEGRAM_BOT_USERNAME})
+    const welcomeText = `Send me a link from the StatXam app to verify your phone number.
 
-Hello *${fromUser}*! If you are resetting your StatXam password or verifying your account, here is your 6-digit OTP:
-
-👉 \`${formattedDirect}\`
-_(Tap to copy: \`${directOtp}\`)_
-
-⏱ *Valid for 10 minutes.*
-Enter this code in StatXam to set your new password.
-
-📚 _StatXam — 20-Year State Board & NEET Question Archive_`;
+Or if you are verifying right now, your one-time code is *${directOtp}*. It expires in a few minutes.`;
 
     await sendTelegramMessage({
       chatId,
