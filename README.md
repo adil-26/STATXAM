@@ -13,7 +13,7 @@ StatXam is a high-performance, mobile-first academic platform built for Indian s
 3. **Dedicated Mobile UI (Single Tab Architecture)**: Clean segmented switcher (`💬 Doubt Chat` & `📐 Scanner & Formulas`) optimized for phone screens without nested layout stacking.
 4. **Interactive CBT Simulator**: Timed exam practice arena with real-time scorecards, negative marking calculation, and performance telemetry.
 5. **Student Bounty Rewards (+150 Coins)**: Students can search the archive and upload missing past board papers (via Local File Drag-Drop or Google Drive links) for admin review and coin rewards.
-6. **Telegram Phone-OTP Recovery (`@statxambot`)**: Secure password-reset verification via official Telegram Bot with deep linking (`https://t.me/statxambot?start=<sessionId>`), webhook support (`POST /api/auth/tg/webhook`), and local long-polling.
+6. **Telegram Phone-OTP Recovery (`@statxambot`)**: Secure password-reset verification via official Telegram Bot with native deep linking (`tg://resolve?domain=statxambot&start=sess_<id>`), web mirrors (`https://telegram.me/...`), webhook support (`POST /api/auth/tg/webhook/`), and local long-polling.
 
 ---
 
@@ -62,7 +62,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 # Standard dynamic build (for Vercel deployment)
 npm run build
 
-# Register Telegram webhook on production domain
+# Register Telegram webhook on production domain (auto-appends trailing slash for Next.js trailingSlash: true)
 npm run telegram:webhook -- https://statxam.vercel.app
 
 # Check webhook status
