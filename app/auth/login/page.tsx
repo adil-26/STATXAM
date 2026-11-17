@@ -47,6 +47,35 @@ export default function LoginPage() {
     }
   };
 
+  const handleCopy = (text: string, label: string) => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        navigator.clipboard.writeText(text);
+      }
+    } catch {
+      // fallback
+    }
+    triggerHaptic('light');
+    showToast(`${label} copied!`);
+  };
+
+  const handleLaunchTelegram = () => {
+    triggerHaptic('medium');
+    setOtpStep('verify');
+    const tgAppUrl = `tg://resolve?domain=statxambot&start=${resetSessionId}`;
+    const webFallbackUrl = `https://telegram.me/statxambot?start=${resetSessionId}`;
+
+    // 1. Try launching native Telegram app directly via tg:// scheme (bypasses ISP web block on t.me)
+    if (typeof window !== 'undefined') {
+      window.location.href = tgAppUrl;
+
+      // 2. Open web mirror in a new tab if app does not intercept
+      setTimeout(() => {
+        window.open(webFallbackUrl, '_blank', 'noopener,noreferrer');
+      }, 700);
+    }
+  };
+
   const handleOpenOtpModal = (e: React.MouseEvent) => {
     e.preventDefault();
     triggerHaptic('light');
@@ -352,16 +381,47 @@ export default function LoginPage() {
                     <span className="material-symbols-outlined text-[16px]">send</span>
                   </button>
 
-                  <a
-                    href={`https://t.me/statxambot?start=${resetSessionId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setOtpStep('verify')}
+                  <button
+                    type="button"
+                    onClick={handleLaunchTelegram}
                     className="w-full py-2.5 rounded-lg bg-[#229ED9] hover:bg-[#1e8bc0] text-white font-label text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-xs transition-colors"
                   >
-                    <span>Open @statxambot in Telegram</span>
-                    <span className="material-symbols-outlined text-[16px]">open_in_new</span>
-                  </a>
+                    <span className="material-symbols-outlined text-[16px]">send</span>
+                    <span>Open in Telegram App</span>
+                  </button>
+
+                  {/* Alternative Web Mirrors & Copy for ISP-blocked users */}
+                  <div className="grid grid-cols-2 gap-2 pt-0.5">
+                    <a
+                      href={`https://telegram.me/statxambot?start=${resetSessionId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setOtpStep('verify')}
+                      className="py-1.5 px-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-[11px] font-label font-medium text-center border border-outline-variant/40 flex items-center justify-center gap-1 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">open_in_browser</span>
+                      <span>Web Mirror</span>
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => handleCopy('@statxambot', 'Bot handle')}
+                      className="py-1.5 px-2 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface text-[11px] font-label font-medium text-center border border-outline-variant/40 flex items-center justify-center gap-1 transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-[13px]">content_copy</span>
+                      <span>Copy Handle</span>
+                    </button>
+                  </div>
+
+                  {/* ISP DNS Block Guidance */}
+                  <div className="p-2.5 rounded-xl bg-surface-container/70 border border-outline-variant/40 text-[11px] text-on-surface-variant space-y-1">
+                    <div className="font-semibold text-on-surface flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[14px] text-amber-500">wifi_off</span>
+                      <span>Link won&apos;t open? (ISP blocks t.me)</span>
+                    </div>
+                    <p className="leading-relaxed text-[11px]">
+                      Open the <strong>Telegram app</strong>, search <strong className="text-primary font-mono">@statxambot</strong>, and tap <strong>Start</strong>. You will receive your 6-digit OTP instantly!
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <form onSubmit={handleVerifyAndReset} className="space-y-3">
@@ -370,15 +430,24 @@ export default function LoginPage() {
                       <span className="material-symbols-outlined text-[16px]">chat</span>
                       <span className="font-bold">@statxambot</span>
                     </div>
-                    <a
-                      href={`https://t.me/statxambot?start=${resetSessionId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] font-bold text-[#229ED9] underline flex items-center gap-0.5"
-                    >
-                      <span>Get Code</span>
-                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
-                    </a>
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`tg://resolve?domain=statxambot&start=${resetSessionId}`}
+                        className="text-[11px] font-bold text-[#229ED9] underline flex items-center gap-0.5 hover:text-primary transition-colors"
+                      >
+                        <span>App</span>
+                      </a>
+                      <span className="text-outline-variant/60">|</span>
+                      <a
+                        href={`https://telegram.me/statxambot?start=${resetSessionId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] font-bold text-[#229ED9] underline flex items-center gap-0.5 hover:text-primary transition-colors"
+                      >
+                        <span>Web</span>
+                        <span className="material-symbols-outlined text-[12px]">open_in_new</span>
+                      </a>
+                    </div>
                   </div>
 
                   <div className="flex flex-col space-y-1">
