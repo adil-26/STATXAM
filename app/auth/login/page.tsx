@@ -10,18 +10,21 @@ export default function LoginPage() {
   const router = useRouter();
   const { login, requestTelegramOtp, resetPasswordViaTelegramOtp } = useAuth();
 
-  const [identity, setIdentity] = useState('9876543210');
-  const [password, setPassword] = useState('AlphaNexus#2025');
+  const [identity, setIdentity] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Telegram 2FA Reset Modal State
   const [showOtpModal, setShowOtpModal] = useState(false);
-  const [otpPhone, setOtpPhone] = useState('9876543210');
-  const [resetSessionId, setResetSessionId] = useState('rst_demo');
+  const [otpPhone, setOtpPhone] = useState('');
+  const [resetSessionId, setResetSessionId] = useState('');
   const [enteredOtp, setEnteredOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otpStep, setOtpStep] = useState<'request' | 'verify'>('request');
   const [otpLoading, setOtpLoading] = useState(false);
 
@@ -79,35 +82,63 @@ export default function LoginPage() {
   const handleOpenOtpModal = (e: React.MouseEvent) => {
     e.preventDefault();
     triggerHaptic('light');
-    setOtpPhone(identity);
+    setOtpPhone(identity || '');
     const newSession = 'sess_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
     setResetSessionId(newSession);
+    setEnteredOtp('');
+    setNewPassword('');
+    setConfirmPassword('');
     setShowOtpModal(true);
     setOtpStep('request');
   };
 
   const handleSendTelegramOtp = async () => {
+    if (!otpPhone.trim()) {
+      triggerHaptic('error');
+      showToast('Please enter your registered mobile number');
+      return;
+    }
     triggerHaptic('medium');
     setOtpLoading(true);
     const res = await requestTelegramOtp(otpPhone);
     setOtpLoading(false);
     showToast(res.message);
     setOtpStep('verify');
-    setEnteredOtp('849210'); // Auto-fill example code for fast testing
+    setEnteredOtp(''); // Keep empty so user types their received code
   };
 
   const handleVerifyAndReset = async (e: React.FormEvent) => {
     e.preventDefault();
     triggerHaptic('medium');
+
+    const cleanOtp = enteredOtp.trim();
+    if (!cleanOtp || cleanOtp.length !== 6) {
+      triggerHaptic('error');
+      showToast('Please enter the 6-digit verification code from Telegram');
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      triggerHaptic('error');
+      showToast('Password must be at least 6 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      triggerHaptic('error');
+      showToast('Passwords do not match. Please verify both fields.');
+      return;
+    }
+
     setOtpLoading(true);
 
-    const res = await resetPasswordViaTelegramOtp(enteredOtp, newPassword || 'StatXam#2026');
+    const res = await resetPasswordViaTelegramOtp(cleanOtp, newPassword);
     setOtpLoading(false);
 
     if (res.success) {
       triggerHaptic('success');
       showToast('Password reset verified via Telegram! Signing in...');
-      await login(otpPhone, newPassword || 'StatXam#2026');
+      await login(otpPhone, newPassword);
       setShowOtpModal(false);
       setTimeout(() => router.push('/'), 700);
     } else {
@@ -456,27 +487,90 @@ export default function LoginPage() {
                       type="text"
                       maxLength={6}
                       value={enteredOtp}
-                      onChange={(e) => setEnteredOtp(e.target.value)}
-                      placeholder="849210"
-                      className="w-full bg-surface-container-low text-on-surface text-sm rounded-lg px-3 py-2 border border-outline-variant/60 font-mono font-bold tracking-widest text-center focus:outline-none focus:border-primary"
+                      onChange={(e) => setEnteredOtp(e.target.value.replace(/\D/g, ''))}
+                      placeholder="• • • • • •"
+                      className="w-full bg-surface-container-low text-on-surface text-base rounded-lg px-3 py-2.5 border border-outline-variant/60 font-mono font-bold tracking-widest text-center focus:outline-none focus:border-primary placeholder:text-outline/40"
                       required
+                      autoFocus
                     />
                   </div>
+
+                  {/* Field 1: New Password */}
                   <div className="flex flex-col space-y-1">
-                    <label className="text-xs font-label font-semibold text-on-surface-variant">New Master Passkey</label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="New strong password"
-                      className="w-full bg-surface-container-low text-on-surface text-xs rounded-lg px-3 py-2 border border-outline-variant/60 focus:outline-none focus:border-primary"
-                      required
-                    />
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-label font-semibold text-on-surface-variant">New Password</label>
+                      <span className="text-[10px] text-on-surface-variant font-mono">Min. 6 chars</span>
+                    </div>
+                    <div className="relative flex items-center">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="Create new password"
+                        className="w-full bg-surface-container-low text-on-surface text-xs rounded-lg pl-3 pr-9 py-2.5 border border-outline-variant/60 focus:outline-none focus:border-primary placeholder:text-outline/40"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-2.5 p-0.5 text-on-surface-variant hover:text-primary transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          {showNewPassword ? 'visibility_off' : 'visibility'}
+                        </span>
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Field 2: Confirm Password */}
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-label font-semibold text-on-surface-variant">Confirm Password</label>
+                      {confirmPassword && (
+                        newPassword === confirmPassword ? (
+                          <span className="text-[10px] text-emerald-500 font-bold flex items-center gap-0.5 animate-in fade-in">
+                            <span className="material-symbols-outlined text-[13px]">check_circle</span>
+                            Passwords match
+                          </span>
+                        ) : (
+                          <span className="text-[10px] text-rose-400 font-bold flex items-center gap-0.5 animate-in fade-in">
+                            <span className="material-symbols-outlined text-[13px]">cancel</span>
+                            Passwords do not match
+                          </span>
+                        )
+                      )}
+                    </div>
+                    <div className="relative flex items-center">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="Re-type new password"
+                        className={`w-full bg-surface-container-low text-on-surface text-xs rounded-lg pl-3 pr-9 py-2.5 border focus:outline-none placeholder:text-outline/40 transition-colors ${
+                          confirmPassword && newPassword !== confirmPassword
+                            ? 'border-rose-400/80 focus:border-rose-500'
+                            : confirmPassword && newPassword === confirmPassword
+                            ? 'border-emerald-500/80 focus:border-emerald-500'
+                            : 'border-outline-variant/60 focus:border-primary'
+                        }`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-2.5 p-0.5 text-on-surface-variant hover:text-primary transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">
+                          {showConfirmPassword ? 'visibility_off' : 'visibility'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
                   <button
                     type="submit"
-                    disabled={otpLoading}
-                    className="w-full py-2.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-label text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-xs"
+                    disabled={otpLoading || (!!confirmPassword && newPassword !== confirmPassword)}
+                    className="w-full py-2.5 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-label text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-xs disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                   >
                     <span>{otpLoading ? 'Verifying...' : 'Set Password & Sign In'}</span>
                     <span className="material-symbols-outlined text-[16px]">check_circle</span>
