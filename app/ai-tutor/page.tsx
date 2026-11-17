@@ -1,0 +1,1619 @@
+'use client';
+
+import React, { useState, useRef, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import katex from 'katex';
+import { triggerHaptic, captureQuestionPhoto } from '@/lib/native-permissions';
+import { solveStudentDoubtWithGroq } from '@/lib/groq-service';
+import { useAuth } from '@/lib/auth-context';
+
+const MAX_FILE_SIZE_MB = 25;
+const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+
+interface FileAttachmentInfo {
+  name: string;
+  sizeMb: string;
+  type: 'image' | 'pdf' | 'document';
+  dataUrl: string;
+}
+
+interface ChatMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
+  formula?: string;
+  imageUri?: string;
+  fileAttachment?: FileAttachmentInfo;
+  isStreaming?: boolean;
+  fullText?: string;
+}
+
+interface ParsedSection {
+  id: string;
+  type:
+    | 'concept'
+    | 'parameters'
+    | 'formula'
+    | 'steps'
+    | 'final'
+    | 'diagram'
+    | 'code'
+    | 'example'
+    | 'insight'
+    | 'general';
+  title: string;
+  content: string;
+}
+
+/**
+ * Intelligent language detection based on character scripts
+ */
+function detectQueryLanguage(text: string, fallback: string = 'english'): string {
+  if (/[\u0A00-\u0A7F]/.test(text)) return 'punjabi';
+  if (/[\u0900-\u097F]/.test(text)) return 'hindi';
+  if (/[\u0B80-\u0BFF]/.test(text)) return 'tamil';
+  if (/[\u0980-\u09FF]/.test(text)) return 'bengali';
+  if (/[\u0C00-\u0C7F]/.test(text)) return 'telugu';
+  if (/[\u0A80-\u0AFF]/.test(text)) return 'gujarati';
+  if (/^[A-Za-z0-9\s.,?!'"+\-*/=()^%_]+$/.test(text)) return 'english';
+  return fallback;
+}
+
+/**
+ * Render a pure LaTeX string into KaTeX HTML safely
+ */
+function renderKatex(latex: string, displayMode: boolean = false): string {
+  if (!latex) return '';
+  try {
+    const cleaned = latex.trim().replace(/^\\\[|\\\]$|^\$\$|\$\$$/g, '').trim();
+    return katex.renderToString(cleaned, {
+      displayMode,
+      throwOnError: false,
+      output: 'htmlAndMathml',
+    });
+  } catch {
+    return latex;
+  }
+}
+
+/**
+ * Converts text containing inline math \(...\), $...$ and block math \[...\], $$...$$ into rich KaTeX HTML
+ */
+function renderContentWithMathAndMarkdown(text: string): string {
+  if (!text) return '';
+
+  // 1. Block math: \[ ... \] or $$ ... $$
+  let formatted = text.replace(/\\\[([\s\S]*?)\\\]|\$\$([\s\S]*?)\$\$/g, (match, p1, p2) => {
+    const rawFormula = (p1 || p2 || '').trim();
+    if (!rawFormula) return match;
+    try {
+      const mathHtml = katex.renderToString(rawFormula, { displayMode: true, throwOnError: false });
+      return `<div class="katex-display-box my-2.5 p-3 rounded-2xl bg-primary/5 border border-primary/20 overflow-x-auto text-center shadow-2xs">${mathHtml}</div>`;
+    } catch {
+      return match;
+    }
+  });
+
+  // 2. Inline math: \( ... \) or $ ... $
+  formatted = formatted.replace(/\\\(([\s\S]*?)\\\)|\$([^$\n\r]+)\$/g, (match, p1, p2) => {
+    const rawFormula = (p1 || p2 || '').trim();
+    if (!rawFormula) return match;
+    try {
+      return katex.renderToString(rawFormula, { displayMode: false, throwOnError: false });
+    } catch {
+      return match;
+    }
+  });
+
+  // 3. Bold text: **text**
+  formatted = formatted.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-on-surface">$1</strong>');
+
+  return formatted;
+}
+
+/**
+ * Robust markdown section parser for formal ChatGPT-style academic solutions
+ */
+function parseResponseIntoSections(text: string): ParsedSection[] {
+  let sanitizedText = text;
+  const fenceCount = (sanitizedText.match(/```/g) || []).length;
+  if (fenceCount % 2 === 1) {
+    sanitizedText += '\n```';
+  }
+
+  const lines = sanitizedText.split('\n');
+  const sections: ParsedSection[] = [];
+  let currentTitle = '';
+  let currentType: ParsedSection['type'] = 'general';
+  let currentLines: string[] = [];
+
+  const flush = () => {
+    if (currentLines.length > 0 || currentTitle) {
+      sections.push({
+        id: `sec-${sections.length}`,
+        type: currentType,
+        title: currentTitle,
+        content: currentLines.join('\n').trim(),
+      });
+      currentLines = [];
+    }
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Skip horizontal divider lines between sections
+    if (trimmed === '---' || trimmed === '***' || trimmed === '- - -') {
+      continue;
+    }
+
+    const headerMatch = trimmed.match(
+      /^(?:#{1,4}\s*(?:[0-9]+\.\s*)?(.+)|\*\*(?:[0-9]+\.\s*)?([^*]+)\*\*)$/
+    );
+
+    if (headerMatch) {
+      const titleCandidate = (headerMatch[1] || headerMatch[2] || '').trim().replace(/:$/, '');
+      const lower = titleCandidate.toLowerCase();
+
+      let detectedType: ParsedSection['type'] | null = null;
+      if (
+        lower.includes('concept') ||
+        lower.includes('overview') ||
+        lower.includes('principle') ||
+        lower.includes('theory')
+      ) {
+        detectedType = 'concept';
+      } else if (
+        lower.includes('parameter') ||
+        lower.includes('given') ||
+        lower.includes('data') ||
+        lower.includes('symbol')
+      ) {
+        detectedType = 'parameters';
+      } else if (
+        lower.includes('formula') ||
+        lower.includes('equation') ||
+        lower.includes('mathematical')
+      ) {
+        detectedType = 'formula';
+      } else if (
+        lower.includes('step') ||
+        lower.includes('working') ||
+        lower.includes('calculation') ||
+        lower.includes('derivation') ||
+        lower.includes('proof')
+      ) {
+        detectedType = 'steps';
+      } else if (
+        lower.includes('final') ||
+        lower.includes('answer') ||
+        lower.includes('conclusion') ||
+        lower.includes('result')
+      ) {
+        detectedType = 'final';
+      } else if (
+        lower.includes('diagram') ||
+        lower.includes('figure') ||
+        lower.includes('construction') ||
+        lower.includes('geometry')
+      ) {
+        detectedType = 'diagram';
+      } else if (
+        lower.includes('python') ||
+        lower.includes('implementation') ||
+        lower.includes('code') ||
+        lower.includes('algorithm')
+      ) {
+        detectedType = 'code';
+      } else if (
+        lower.includes('example') ||
+        lower.includes('input') ||
+        lower.includes('output') ||
+        lower.includes('test case')
+      ) {
+        detectedType = 'example';
+      } else if (
+        lower.includes('insight') ||
+        lower.includes('trap') ||
+        lower.includes('tip') ||
+        lower.includes('pitfall') ||
+        lower.includes('takeaway')
+      ) {
+        detectedType = 'insight';
+      }
+
+      if (detectedType) {
+        flush();
+        currentTitle = titleCandidate;
+        currentType = detectedType;
+        continue;
+      }
+    }
+
+    currentLines.push(line);
+  }
+
+  flush();
+
+  if (sections.length === 0) {
+    sections.push({
+      id: 'sec-0',
+      type: 'general',
+      title: '',
+      content: sanitizedText,
+    });
+  }
+
+  return sections;
+}
+
+/**
+ * Syntax-Styled Code Block Window with One-Click Copy
+ */
+function CodeBlockBox({
+  codeRaw,
+  copyId,
+  copiedKey,
+  onCopy,
+}: {
+  codeRaw: string;
+  copyId: string;
+  copiedKey: string | null;
+  onCopy: (code: string, id: string) => void;
+}) {
+  const contentWithoutFences = codeRaw.replace(/^```|```$/g, '').trim();
+  const firstNewline = contentWithoutFences.indexOf('\n');
+  let lang = 'code';
+  let code = contentWithoutFences;
+  if (firstNewline !== -1) {
+    const possibleLang = contentWithoutFences.slice(0, firstNewline).trim();
+    if (possibleLang && !possibleLang.includes(' ')) {
+      lang = possibleLang;
+      code = contentWithoutFences.slice(firstNewline + 1);
+    }
+  }
+
+  return (
+    <div className="my-2.5 rounded-2xl overflow-hidden border border-[#3e342e] bg-[#1c1815] text-[#faf5ee] shadow-xs">
+      <div className="flex items-center justify-between px-3.5 py-1.5 bg-[#251f1b] border-b border-[#3e342e] text-xs font-mono">
+        <div className="flex items-center gap-2 text-[#f0a878]">
+          <span className="material-symbols-outlined text-[15px]">terminal</span>
+          <span className="font-bold uppercase tracking-wider text-[10px]">{lang}</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => onCopy(code, copyId)}
+          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1c1815] hover:bg-[#322923] text-[#cec6be] hover:text-[#faf5ee] text-xs font-mono transition-all border border-[#3e342e]"
+        >
+          <span className="material-symbols-outlined text-[13px] text-[#f0a878]">
+            {copiedKey === copyId ? 'check' : 'content_copy'}
+          </span>
+          <span className="font-semibold text-[11px]">{copiedKey === copyId ? 'Copied!' : 'Copy Code'}</span>
+        </button>
+      </div>
+      <pre className="p-3 text-xs sm:text-sm font-mono overflow-x-auto text-[#86efac] leading-relaxed">
+        <code>{code}</code>
+      </pre>
+    </div>
+  );
+}
+
+/**
+ * Visual Educational Section Card with KaTeX Math Function Renderers
+ */
+function SectionCard({
+  section,
+  copiedKey,
+  onCopy,
+}: {
+  section: ParsedSection;
+  copiedKey: string | null;
+  onCopy: (text: string, id: string) => void;
+}) {
+  const { type, title, content, id } = section;
+
+  // 1. Code Block Section
+  if (type === 'code' || (content.startsWith('```') && content.endsWith('```'))) {
+    return (
+      <div className="space-y-1">
+        {title && (
+          <div className="flex items-center gap-1.5 text-xs font-headline font-bold text-on-surface pt-1">
+            <span className="material-symbols-outlined text-[15px] text-primary">data_object</span>
+            <span>{title}</span>
+          </div>
+        )}
+        <CodeBlockBox
+          codeRaw={content}
+          copyId={`code-${id}`}
+          copiedKey={copiedKey}
+          onCopy={onCopy}
+        />
+      </div>
+    );
+  }
+
+  // 2. Exam Insight / Common Trap Card (Warning Callout)
+  if (type === 'insight') {
+    return (
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+            <span className="material-symbols-outlined text-[17px]">warning</span>
+            <span className="font-headline font-bold text-xs uppercase tracking-wider">
+              {title || 'Exam Insight & Common Trap'}
+            </span>
+          </div>
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300">
+            Examiner Tip
+          </span>
+        </div>
+        <div
+          className="text-xs sm:text-sm leading-relaxed text-on-surface"
+          dangerouslySetInnerHTML={{ __html: renderContentWithMathAndMarkdown(content) }}
+        />
+      </div>
+    );
+  }
+
+  // 3. Formula & Principles Applied Card (LIVE KaTeX Mathematical Function)
+  if (type === 'formula') {
+    const formulaMatch = content.match(/\\\[([\s\S]*?)\\\]|\$\$([\s\S]*?)\$\$/);
+    const rawFormula = formulaMatch ? (formulaMatch[1] || formulaMatch[2] || '').trim() : content.trim();
+    const renderedMath = renderKatex(rawFormula, true);
+
+    return (
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-primary/5 border border-primary/25 space-y-2.5 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-primary">
+            <span className="material-symbols-outlined text-[17px]">functions</span>
+            <span className="font-headline font-bold text-xs uppercase tracking-wider">
+              {title || 'Formula & Mathematical Function'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onCopy(rawFormula, `formula-${id}`)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface border border-primary/30 text-primary text-[11px] font-mono font-semibold hover:bg-primary/10 transition-colors shadow-2xs"
+          >
+            <span className="material-symbols-outlined text-[13px]">
+              {copiedKey === `formula-${id}` ? 'check' : 'content_copy'}
+            </span>
+            <span>{copiedKey === `formula-${id}` ? 'Copied LaTeX!' : 'Copy Formula'}</span>
+          </button>
+        </div>
+
+        <div
+          className="p-3 sm:p-4 rounded-xl bg-surface border border-outline-variant/60 overflow-x-auto text-center"
+          dangerouslySetInnerHTML={{ __html: renderedMath }}
+        />
+
+        {formulaMatch && content.replace(/\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$/g, '').trim() && (
+          <div
+            className="text-xs text-on-surface-variant pt-1 border-t border-outline-variant/30 leading-relaxed"
+            dangerouslySetInnerHTML={{
+              __html: renderContentWithMathAndMarkdown(
+                content.replace(/\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$/g, '').trim()
+              ),
+            }}
+          />
+        )}
+      </div>
+    );
+  }
+
+  // 4. Final Answer Card
+  if (type === 'final') {
+    return (
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2.5 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+            <span className="material-symbols-outlined text-[18px]">verified</span>
+            <span className="font-headline font-bold text-xs uppercase tracking-wider">
+              {title || 'Final Answer'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onCopy(content.replace(/```/g, ''), `final-${id}`)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-[11px] font-mono font-semibold hover:bg-emerald-500/10 transition-colors shadow-2xs"
+          >
+            <span className="material-symbols-outlined text-[13px]">
+              {copiedKey === `final-${id}` ? 'check' : 'content_copy'}
+            </span>
+            <span>{copiedKey === `final-${id}` ? 'Copied Answer!' : 'Copy Answer'}</span>
+          </button>
+        </div>
+        <div className="text-xs sm:text-sm font-semibold text-on-surface">
+          <FormattedTextSegment
+            text={content}
+            segmentIdx={4}
+            copiedKey={copiedKey}
+            onCopy={onCopy}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 5. Diagrammatic / Geometric Construction Card
+  if (type === 'diagram') {
+    return (
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#1c222b] border border-[#2d3748] text-[#f1f5f9] space-y-2 shadow-2xs">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-sky-400">
+            <span className="material-symbols-outlined text-[17px]">schema</span>
+            <span className="font-headline font-bold text-xs uppercase tracking-wider">
+              {title || 'Diagram & Geometric Construction'}
+            </span>
+          </div>
+          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/20 text-sky-300">
+            Geometry View
+          </span>
+        </div>
+        <div className="p-3 rounded-xl bg-[#0f172a] border border-[#1e293b] font-mono text-xs sm:text-sm text-sky-200 overflow-x-auto whitespace-pre leading-relaxed">
+          {content}
+        </div>
+      </div>
+    );
+  }
+
+  // 6. Example Input / Output Terminal Card
+  if (type === 'example') {
+    return (
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#181412] border border-[#342b26] text-[#faf5ee] space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-sky-400">
+            <span className="material-symbols-outlined text-[17px]">input</span>
+            <span className="font-headline font-bold text-xs uppercase tracking-wider">
+              {title || 'Example Input / Output'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => onCopy(content.replace(/```/g, ''), `example-${id}`)}
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#241e1b] border border-[#3e342e] text-[#cec6be] hover:text-[#faf5ee] text-[11px] font-mono transition-colors"
+          >
+            <span className="material-symbols-outlined text-[13px]">
+              {copiedKey === `example-${id}` ? 'check' : 'content_copy'}
+            </span>
+            <span>{copiedKey === `example-${id}` ? 'Copied!' : 'Copy I/O'}</span>
+          </button>
+        </div>
+        <pre className="p-3 rounded-xl bg-[#120f0d] font-mono text-xs text-[#a5f3fc] overflow-x-auto leading-relaxed">
+          <code>{content.replace(/```/g, '').trim()}</code>
+        </pre>
+      </div>
+    );
+  }
+
+  // 7. Given Parameters Card
+  if (type === 'parameters') {
+    return (
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20 space-y-2">
+        <div className="flex items-center gap-1.5 text-blue-700 dark:text-blue-400">
+          <span className="material-symbols-outlined text-[17px]">fact_check</span>
+          <span className="font-headline font-bold text-xs uppercase tracking-wider">
+            {title || 'Given Parameters'}
+          </span>
+        </div>
+        <div className="text-xs sm:text-sm leading-relaxed text-on-surface">
+          <FormattedTextSegment
+            text={content}
+            segmentIdx={0}
+            copiedKey={copiedKey}
+            onCopy={onCopy}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 8. Concept Overview Card
+  if (type === 'concept') {
+    return (
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-container-low/70 border border-outline-variant/60 space-y-2">
+        <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+          <span className="material-symbols-outlined text-[17px]">lightbulb</span>
+          <span className="font-headline font-bold text-xs uppercase tracking-wider">
+            {title || 'Concept Overview'}
+          </span>
+        </div>
+        <div className="text-xs sm:text-sm leading-relaxed text-on-surface">
+          <FormattedTextSegment
+            text={content}
+            segmentIdx={1}
+            copiedKey={copiedKey}
+            onCopy={onCopy}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 9. Step-by-Step Working Card
+  if (type === 'steps') {
+    return (
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-container-low/70 border border-outline-variant/60 space-y-2">
+        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+          <span className="material-symbols-outlined text-[17px]">format_list_numbered</span>
+          <span className="font-headline font-bold text-xs uppercase tracking-wider">
+            {title || 'Step-by-Step Working'}
+          </span>
+        </div>
+        <div className="text-xs sm:text-sm leading-relaxed text-on-surface">
+          <FormattedTextSegment
+            text={content}
+            segmentIdx={2}
+            copiedKey={copiedKey}
+            onCopy={onCopy}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // 10. General Fallback Card
+  return (
+    <div className="space-y-1.5 py-1">
+      {title && (
+        <h4 className="font-headline font-bold text-xs sm:text-sm text-on-surface flex items-center gap-1.5">
+          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+          <span>{title}</span>
+        </h4>
+      )}
+      <div className="text-xs sm:text-sm leading-relaxed text-on-surface">
+        <FormattedTextSegment
+          text={content}
+          segmentIdx={3}
+          copiedKey={copiedKey}
+          onCopy={onCopy}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Formatted Markdown Text Segment with Table & Math Recognition
+ */
+function FormattedTextSegment({
+  text,
+  segmentIdx,
+  copiedKey,
+  onCopy,
+}: {
+  text: string;
+  segmentIdx: number;
+  copiedKey: string | null;
+  onCopy: (t: string, id: string) => void;
+}) {
+  const paragraphs = text.split(/\n\n+/);
+
+  return (
+    <div className="space-y-2 text-xs sm:text-sm leading-relaxed font-body">
+      {paragraphs.map((p, pIdx) => {
+        const trimmed = p.trim();
+        if (!trimmed) return null;
+
+        const lines = trimmed.split('\n');
+        const isTable =
+          lines.length >= 2 &&
+          lines[0].startsWith('|') &&
+          lines[0].endsWith('|') &&
+          lines[1].includes('|-');
+
+        if (isTable) {
+          const headerCols = lines[0]
+            .split('|')
+            .slice(1, -1)
+            .map((c) => c.trim());
+          const rowLines = lines.slice(2).filter((l) => l.startsWith('|'));
+          return (
+            <div
+              key={`tbl-${pIdx}`}
+              className="my-2.5 overflow-x-auto rounded-xl border border-outline-variant/60 shadow-2xs"
+            >
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-surface-container font-semibold text-on-surface">
+                  <tr>
+                    {headerCols.map((h, i) => (
+                      <th
+                        key={i}
+                        className="px-3 py-1.5 border-b border-outline-variant/50 font-label text-[11px]"
+                        dangerouslySetInnerHTML={{ __html: renderContentWithMathAndMarkdown(h) }}
+                      />
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-outline-variant/30 bg-surface-container-lowest">
+                  {rowLines.map((row, rIdx) => {
+                    const cells = row
+                      .split('|')
+                      .slice(1, -1)
+                      .map((c) => c.trim());
+                    return (
+                      <tr key={rIdx} className="hover:bg-surface-container-low/50 transition-colors">
+                        {cells.map((cell, cIdx) => (
+                          <td
+                            key={cIdx}
+                            className="px-3 py-1.5 text-on-surface text-[12px]"
+                            dangerouslySetInnerHTML={{ __html: renderContentWithMathAndMarkdown(cell) }}
+                          />
+                        ))}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+
+        if (
+          (trimmed.startsWith('\\[') && trimmed.endsWith('\\]')) ||
+          (trimmed.startsWith('$$') && trimmed.endsWith('$$'))
+        ) {
+          const formulaRaw = trimmed.replace(/^\\\[|^\$\$|\\\]$|\$\$$/g, '').trim();
+          const copyId = `eq-${segmentIdx}-${pIdx}`;
+          const renderedMath = renderKatex(formulaRaw, true);
+          return (
+            <div
+              key={`eq-${pIdx}`}
+              className="my-2.5 p-3 sm:p-3.5 rounded-2xl bg-primary/5 border border-primary/20 space-y-2 shadow-2xs"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono uppercase font-bold text-primary flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[15px]">calculate</span>
+                  <span>Mathematical Expression</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onCopy(formulaRaw, copyId)}
+                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface border border-primary/30 hover:bg-primary/10 text-primary text-[11px] font-mono font-semibold transition-colors"
+                  title="Copy Formula"
+                >
+                  <span className="material-symbols-outlined text-[13px]">
+                    {copiedKey === copyId ? 'check' : 'content_copy'}
+                  </span>
+                  <span>{copiedKey === copyId ? 'Copied' : 'Copy Formula'}</span>
+                </button>
+              </div>
+              <div
+                className="overflow-x-auto text-center py-1"
+                dangerouslySetInnerHTML={{ __html: renderedMath }}
+              />
+            </div>
+          );
+        }
+
+        return (
+          <div
+            key={`p-${pIdx}`}
+            className="leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: renderContentWithMathAndMarkdown(trimmed) }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Message Bubble with Attached Images & Documents Support
+ */
+function ChatMessageBubble({
+  message,
+  copiedKey,
+  onCopy,
+  onSkipStreaming,
+}: {
+  message: ChatMessage;
+  copiedKey: string | null;
+  onCopy: (text: string, id: string) => void;
+  onSkipStreaming: (id: string) => void;
+}) {
+  const isUser = message.sender === 'user';
+
+  if (isUser) {
+    return (
+      <div className="flex flex-col items-end w-full">
+        <div className="max-w-[88%] sm:max-w-[75%] rounded-2xl p-3 sm:p-4 shadow-xs bg-primary text-on-primary rounded-br-xs space-y-2">
+          {/* Attached Image Preview */}
+          {message.imageUri && (
+            <div className="rounded-xl overflow-hidden max-h-52 border border-white/20">
+              <img src={message.imageUri} alt="Uploaded Problem" className="w-full h-full object-cover" />
+            </div>
+          )}
+
+          {/* Attached PDF or Document Card */}
+          {message.fileAttachment && message.fileAttachment.type !== 'image' && (
+            <div className="p-2.5 rounded-xl bg-black/25 border border-white/20 flex items-center justify-between gap-2.5 text-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-red-500/20 text-white flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="font-bold font-mono text-white truncate text-xs">{message.fileAttachment.name}</p>
+                  <p className="text-[10px] text-white/80 font-mono">
+                    {message.fileAttachment.sizeMb} • Document
+                  </p>
+                </div>
+              </div>
+              <span className="px-1.5 py-0.5 rounded bg-white/20 text-white text-[10px] font-mono font-bold shrink-0">
+                OCR Ready
+              </span>
+            </div>
+          )}
+
+          {message.text && (
+            <p className="text-xs sm:text-sm leading-relaxed font-body whitespace-pre-wrap">{message.text}</p>
+          )}
+
+          <span className="text-[10px] mt-0.5 block font-label text-on-primary/80 text-right">
+            {message.timestamp}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Assistant Bubble: Structured Card Deck with KaTeX
+  const sections = parseResponseIntoSections(message.text);
+
+  return (
+    <div className="flex flex-col items-start w-full">
+      <div className="w-full max-w-[98%] sm:max-w-[92%] rounded-3xl p-3.5 sm:p-5 shadow-sm bg-surface-container-lowest text-on-surface border border-outline-variant/60 rounded-bl-xs space-y-3.5">
+        {/* Header Bar */}
+        <div className="flex items-center justify-between pb-2.5 border-b border-outline-variant/40">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+              <span className="material-symbols-outlined text-[17px]">psychology</span>
+            </div>
+            <div>
+              <span className="font-headline font-bold text-xs text-on-surface block leading-tight">
+                Clara Neural Solver
+              </span>
+              <span className="text-[10px] text-on-surface-variant font-mono">
+                {message.isStreaming ? (
+                  <span className="text-primary font-bold animate-pulse">
+                    Streaming solution...
+                  </span>
+                ) : (
+                  'Verified Academic Solution'
+                )}
+              </span>
+            </div>
+          </div>
+
+          {message.isStreaming && (
+            <button
+              type="button"
+              onClick={() => onSkipStreaming(message.id)}
+              className="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/60 text-xs font-mono font-bold text-primary flex items-center gap-1 transition-all"
+            >
+              <span>Skip</span>
+              <span className="material-symbols-outlined text-[14px]">fast_forward</span>
+            </button>
+          )}
+        </div>
+
+        {/* Photo Preview if any */}
+        {message.imageUri && (
+          <div className="mb-2 rounded-xl overflow-hidden max-h-48 border border-outline-variant/40">
+            <img src={message.imageUri} alt="Captured question" className="w-full h-full object-cover" />
+          </div>
+        )}
+
+        {/* Render Structured Sections Deck */}
+        <div className="space-y-3">
+          {sections.map((section) => (
+            <SectionCard
+              key={section.id}
+              section={section}
+              copiedKey={copiedKey}
+              onCopy={onCopy}
+            />
+          ))}
+
+          {/* Live Blinking Typewriter Cursor */}
+          {message.isStreaming && (
+            <div className="flex items-center gap-1 pt-1 text-primary">
+              <span className="w-2.5 h-4 bg-primary inline-block animate-pulse rounded-xs" />
+              <span className="text-[11px] font-mono italic text-on-surface-variant">
+                Writing mathematical derivation...
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Toolbar: Copy Full Solution & Timestamp */}
+        <div className="flex items-center justify-between pt-2.5 border-t border-outline-variant/40 text-xs">
+          <button
+            type="button"
+            onClick={() =>
+              onCopy(
+                message.fullText || message.text,
+                `full-${message.id}`
+              )
+            }
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-label font-bold transition-all shadow-2xs border border-outline-variant/50"
+          >
+            <span className="material-symbols-outlined text-[15px] text-primary">
+              {copiedKey === `full-${message.id}` ? 'check' : 'content_copy'}
+            </span>
+            <span>{copiedKey === `full-${message.id}` ? 'Copied Solution!' : 'Copy Full Solution'}</span>
+          </button>
+
+          <span className="text-[10px] text-on-surface-variant font-label">{message.timestamp}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AiTutorContent() {
+  const searchParams = useSearchParams();
+  const initialQ = searchParams?.get('q');
+  const { user } = useAuth();
+
+  // Mobile Single Tab State: 'chat' or 'tools'
+  const [activeTab, setActiveTab] = useState<'chat' | 'tools'>('chat');
+  const [selectedLanguage, setSelectedLanguage] = useState<'auto' | 'english' | 'hindi' | 'punjabi'>('auto');
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  // File & Image Attachment State (Max 25 MB)
+  const [selectedAttachment, setSelectedAttachment] = useState<FileAttachmentInfo | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const streamIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingFullResponseRef = useRef<{ id: string; text: string } | null>(null);
+
+  // Pre-seeded starter demo conversation
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    {
+      id: 'm-1',
+      sender: 'assistant',
+      text: `**Concept Overview**  
+Good day, aspiring scholar. I am Clara, your formal StatXam Academic Tutor for NEET-UG, JEE, and Board Examinations.
+
+**Given Parameters**  
+- Multilingual Mode: English, Hindi, Punjabi & Regional Indian languages.
+- Capabilities: Step-by-step numerical derivations, LaTeX mathematical functions, code algorithms, and official marking schemes.
+- Upload Limit: Supports PDF documents, question papers, and photos up to **25 MB**.
+
+**Exam Insight / Common Trap**  
+Snap a photo of any question, upload a PDF/image, or paste a problem below to begin your session!`,
+      timestamp: '10:00 AM',
+    },
+    {
+      id: 'm-2',
+      sender: 'user',
+      text: 'Explain the prism formula n = sin((A + dm)/2) / sin(A/2) and prove minimum deviation is 30° when i = 45° for equilateral prism.',
+      timestamp: '10:02 AM',
+    },
+    {
+      id: 'm-3',
+      sender: 'assistant',
+      text: `**Concept Overview**  
+The prism equation relates the refractive index \\(n\\) of a prism to its apex angle \\(A\\) and the angle of minimum deviation \\(\\delta_m\\). In an equilateral glass prism, all three refracting angles are equal (\\(A = 60^\\circ\\)). At minimum deviation, the internal ray travels parallel to the prism base, meaning the angle of incidence equals the angle of emergence (\\(i = e = 45^\\circ\\)).
+
+**Given Parameters**  
+| Symbol | Meaning | Value |
+|--------|---------|-------|
+| \\(A\\) | Prism Apex Angle | \\(60^\\circ\\) |
+| \\(i\\) | Angle of Incidence | \\(45^\\circ\\) |
+| \\(e\\) | Angle of Emergence | \\(45^\\circ\\) |
+| \\(n\\) | Refractive Index of Glass | Dimensionless |
+
+**Formula & Principles Applied**  
+The primary mathematical relation governing the refractive index of a triangular prism is:
+\\[
+n = \\frac{\\sin\\!\\left(\\dfrac{A + \\delta_m}{2}\\right)}{\\sin\\!\\left(\\dfrac{A}{2}\\right)}
+\\]
+Additionally, the deviation angle relates to incidence and emergence angles by:
+\\[
+A + \\delta_m = i + e \\implies \\delta_m = 2i - A
+\\]
+
+**Step‑by‑Step Working**  
+1. Substitute given angles into the deviation equation:
+   \\[ 60^\\circ + \\delta_m = 45^\\circ + 45^\\circ \\]
+2. Compute the sum on the right-hand side:
+   \\[ 60^\\circ + \\delta_m = 90^\\circ \\]
+3. Isolate the minimum deviation:
+   \\[ \\delta_m = 90^\\circ - 60^\\circ = 30^\\circ \\]
+4. Evaluate refractive index \\(n\\):
+   \\[ n = \\frac{\\sin(45^\\circ)}{\\sin(30^\\circ)} = \\frac{1/\\sqrt{2}}{1/2} = \\sqrt{2} \\approx 1.414 \\]
+
+**Final Answer**  
+\\[
+\\boxed{ \\delta_m = 30^\\circ, \\quad n = \\sqrt{2} \\approx 1.414 }
+\\]
+
+**Exam Insight / Common Trap**  
+Students frequently forget that for an equilateral prism, \\(A = 60^\\circ\\) is implicit and not always given explicitly in the problem text. Always state \\(A = 60^\\circ\\) as your first step to secure full step marks!`,
+      timestamp: '10:02 AM',
+    },
+  ]);
+
+  const [inputText, setInputText] = useState(initialQ || '');
+  const [isTyping, setIsTyping] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 2500);
+  };
+
+  const handleCopy = async (text: string, id: string) => {
+    try {
+      triggerHaptic('light');
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedKey(id);
+      showToast('Copied to clipboard!');
+      setTimeout(() => {
+        setCopiedKey(null);
+      }, 2000);
+    } catch {
+      showToast('Failed to copy');
+    }
+  };
+
+  // Process and validate uploaded file (Max 25 MB)
+  const handleFileChosen = (file: File) => {
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      triggerHaptic('error');
+      const actualMb = (file.size / (1024 * 1024)).toFixed(1);
+      alert(
+        `File size (${actualMb} MB) exceeds maximum allowed limit of ${MAX_FILE_SIZE_MB} MB. Please choose a smaller file.`
+      );
+      showToast(`Exceeds ${MAX_FILE_SIZE_MB} MB limit!`);
+      return;
+    }
+
+    triggerHaptic('light');
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(2) + ' MB';
+    const isImg = file.type.startsWith('image/');
+    const isPdf = file.type === 'application/pdf' || file.name.endsWith('.pdf');
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      setSelectedAttachment({
+        name: file.name,
+        sizeMb,
+        type: isImg ? 'image' : isPdf ? 'pdf' : 'document',
+        dataUrl: reader.result as string,
+      });
+      showToast(`Attached ${file.name} (${sizeMb})`);
+      // If student attached on Tools tab, switch to Chat tab to see it
+      setActiveTab('chat');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
+
+  useEffect(() => {
+    return () => {
+      if (streamIntervalRef.current) {
+        clearInterval(streamIntervalRef.current);
+      }
+    };
+  }, []);
+
+  const handleSkipStreaming = (msgId: string) => {
+    if (streamIntervalRef.current) {
+      clearInterval(streamIntervalRef.current);
+      streamIntervalRef.current = null;
+    }
+    const pending = pendingFullResponseRef.current;
+    if (pending && pending.id === msgId) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId
+            ? {
+                ...m,
+                text: pending.text,
+                isStreaming: false,
+              }
+            : m
+        )
+      );
+      triggerHaptic('medium');
+    }
+  };
+
+  const handleSendMessage = async (textToSend?: string) => {
+    const rawText = (textToSend || inputText).trim();
+    if (!rawText && !selectedAttachment) return;
+
+    triggerHaptic('light');
+
+    const attachmentToSend = selectedAttachment;
+    setSelectedAttachment(null);
+
+    const userText =
+      rawText ||
+      (attachmentToSend?.type === 'pdf'
+        ? `Uploaded ${attachmentToSend.name} for question analysis:`
+        : `Uploaded question image for step-by-step solution:`);
+
+    const userMsg: ChatMessage = {
+      id: `msg-${Date.now()}`,
+      sender: 'user',
+      text: userText,
+      imageUri: attachmentToSend?.type === 'image' ? attachmentToSend.dataUrl : undefined,
+      fileAttachment: attachmentToSend || undefined,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+
+    setMessages((prev) => [...prev, userMsg]);
+    setInputText('');
+    setIsTyping(true);
+    // Ensure chat view is active
+    setActiveTab('chat');
+
+    const effectiveLang =
+      selectedLanguage === 'auto'
+        ? detectQueryLanguage(userText, user?.language || 'english')
+        : selectedLanguage;
+
+    const boardName = user?.targetExam || 'NEET-UG & Indian Board Exam';
+
+    const queryForGroq = attachmentToSend
+      ? `${userText} (Document/Image Reference: ${attachmentToSend.name})`
+      : userText;
+
+    try {
+      const groqRes = await solveStudentDoubtWithGroq({
+        query: queryForGroq,
+        language: effectiveLang,
+        board: boardName,
+      });
+
+      setIsTyping(false);
+      triggerHaptic('medium');
+
+      // START TYPEWRITER STREAMING EFFECT
+      const botMsgId = `msg-${Date.now() + 1}`;
+      const fullText = groqRes.explanation;
+
+      pendingFullResponseRef.current = {
+        id: botMsgId,
+        text: fullText,
+      };
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: botMsgId,
+          sender: 'assistant',
+          text: '',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isStreaming: true,
+          fullText,
+        },
+      ]);
+
+      if (streamIntervalRef.current) {
+        clearInterval(streamIntervalRef.current);
+      }
+
+      let currentIndex = 0;
+      const totalLen = fullText.length;
+      const stepSize = Math.max(3, Math.ceil(totalLen / 100));
+
+      streamIntervalRef.current = setInterval(() => {
+        currentIndex = Math.min(currentIndex + stepSize, totalLen);
+        const currentSlice = fullText.slice(0, currentIndex);
+        const isDone = currentIndex >= totalLen;
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === botMsgId
+              ? {
+                  ...m,
+                  text: currentSlice,
+                  isStreaming: !isDone,
+                }
+              : m
+          )
+        );
+
+        if (isDone) {
+          if (streamIntervalRef.current) {
+            clearInterval(streamIntervalRef.current);
+            streamIntervalRef.current = null;
+          }
+          triggerHaptic('light');
+        }
+      }, 22);
+    } catch {
+      setIsTyping(false);
+      triggerHaptic('medium');
+      const fallbackText =
+        effectiveLang === 'punjabi'
+          ? `**ਸੰਕਲਪ ਸਾਰ**\n"${userText}" ਲਈ ਪਾਠ-ਪੁਸਤਕ ਦੇ ਨਿਯਮਾਂ ਅਨੁਸਾਰ ਸਟੈਪ-ਬਾਈ-ਸਟੈਪ ਹੱਲ ਕਰੋ।`
+          : effectiveLang === 'hindi'
+          ? `**अवधारणा अवलोकन**\n"${userText}" के लिए मानक पाठ्यपुस्तक प्रमेय और चरण-दर-चरण अंकन योजना लागू करें।`
+          : `**Concept Overview**\nAcademic solution for "${userText}". Applied standard ${boardName} step-marking rubrics and formulas.`;
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `msg-${Date.now() + 1}`,
+          sender: 'assistant',
+          text: fallbackText,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+    }
+  };
+
+  const handleCameraSnap = async () => {
+    triggerHaptic('medium');
+    const photoUrl = await captureQuestionPhoto();
+    if (photoUrl) {
+      showToast('Photo captured! Ready for solution.');
+      setSelectedAttachment({
+        name: `Camera_Capture_${Date.now()}.jpg`,
+        sizeMb: '1.8 MB',
+        type: 'image',
+        dataUrl: photoUrl,
+      });
+      setActiveTab('chat');
+    } else {
+      showToast('Camera cancelled or not available');
+    }
+  };
+
+  const handleResetChat = () => {
+    triggerHaptic('medium');
+    if (confirm('Clear current doubt conversation and start fresh?')) {
+      setMessages([
+        {
+          id: `msg-${Date.now()}`,
+          sender: 'assistant',
+          text: `**Concept Overview**  
+Welcome back! How may I assist your exam preparation today? Ask a question or attach a paper scan (Max 25 MB).`,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        },
+      ]);
+      setSelectedAttachment(null);
+      showToast('Conversation reset');
+    }
+  };
+
+  return (
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-2 md:py-6 pb-20 md:pb-6">
+      {/* Hidden File Inputs for Document & Image Upload */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFileChosen(f);
+          e.target.value = '';
+        }}
+        className="hidden"
+      />
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) handleFileChosen(f);
+          e.target.value = '';
+        }}
+        className="hidden"
+      />
+
+      {/* Top Header Bar */}
+      <div className="flex items-center justify-between gap-2 mb-3 sm:mb-5">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg shrink-0 border border-primary/20 shadow-2xs">
+            <span className="material-symbols-outlined text-[20px] sm:text-[22px]">psychology</span>
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h1 className="font-headline text-base sm:text-2xl font-bold text-on-surface truncate">
+                AI Neural Doubt Solver
+              </h1>
+              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold font-label bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Online
+              </span>
+            </div>
+            <p className="text-[11px] sm:text-xs text-on-surface-variant truncate font-body">
+              Step solutions • KaTeX Math • Max 25 MB Allowed
+            </p>
+          </div>
+        </div>
+
+        {/* Right Top Controls: Language Selector & Reset */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* Language Selector Pill */}
+          <div className="flex items-center gap-0.5 p-0.5 bg-surface-container rounded-xl border border-outline-variant/60 text-xs font-label">
+            {[
+              { id: 'auto', label: 'Auto' },
+              { id: 'english', label: 'EN' },
+              { id: 'hindi', label: 'हि' },
+              { id: 'punjabi', label: 'ਪੰ' },
+            ].map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => {
+                  triggerHaptic('light');
+                  setSelectedLanguage(l.id as any);
+                }}
+                className={`px-1.5 sm:px-2 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                  selectedLanguage === l.id
+                    ? 'bg-primary text-on-primary shadow-2xs'
+                    : 'text-on-surface-variant hover:text-on-surface'
+                }`}
+                title={`Language: ${l.label}`}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Reset Chat Button */}
+          <button
+            type="button"
+            onClick={handleResetChat}
+            className="w-8 h-8 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/60 text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors"
+            title="Reset conversation"
+          >
+            <span className="material-symbols-outlined text-[17px]">restart_alt</span>
+          </button>
+        </div>
+      </div>
+
+      {/* MOBILE SINGLE TAB SWITCHER (< lg screens) */}
+      <div className="flex lg:hidden items-center p-1 bg-surface-container rounded-2xl border border-outline-variant/60 mb-3 shadow-2xs">
+        <button
+          type="button"
+          onClick={() => {
+            triggerHaptic('light');
+            setActiveTab('chat');
+          }}
+          className={`flex-1 py-2 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${
+            activeTab === 'chat'
+              ? 'bg-primary text-on-primary shadow-xs'
+              : 'text-on-surface-variant hover:text-on-surface'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[17px]">chat</span>
+          <span>Doubt Chat</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            triggerHaptic('light');
+            setActiveTab('tools');
+          }}
+          className={`flex-1 py-2 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${
+            activeTab === 'tools'
+              ? 'bg-primary text-on-primary shadow-xs'
+              : 'text-on-surface-variant hover:text-on-surface'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[17px]">calculate</span>
+          <span>Scanner &amp; Formulas</span>
+        </button>
+      </div>
+
+      {/* Responsive Layout: On Mobile only the active tab is visible; On Desktop both columns sit side-by-side */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        {/* COLUMN 1: PURE FOCUSED CHAT TAB (Always visible on desktop; on mobile shown only when activeTab === 'chat') */}
+        <div
+          className={`${
+            activeTab === 'chat' ? 'flex' : 'hidden lg:flex'
+          } lg:col-span-8 flex-col bg-surface-container-low border border-outline-variant/60 rounded-2xl p-3 sm:p-5 shadow-xs h-[calc(100dvh-175px)] sm:h-[calc(100vh-200px)] lg:h-[720px] justify-between`}
+        >
+          {/* Chat Messages Stream with Auto-Scroll */}
+          <div className="flex-1 min-h-0 overflow-y-auto space-y-3.5 pr-1 pb-1">
+            {messages.map((m) => (
+              <ChatMessageBubble
+                key={m.id}
+                message={m}
+                copiedKey={copiedKey}
+                onCopy={handleCopy}
+                onSkipStreaming={handleSkipStreaming}
+              />
+            ))}
+
+            {isTyping && (
+              <div className="flex items-center gap-2 text-xs font-label text-primary bg-surface-container px-3 py-1.5 rounded-full w-max border border-outline-variant/40 animate-pulse">
+                <span className="material-symbols-outlined text-[15px] animate-spin">progress_activity</span>
+                <span>Clara is deducing steps &amp; KaTeX formulas...</span>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Sticky Bottom Dock: Previews, Quick Prompts & Input Bar */}
+          <div className="mt-2 pt-2 border-t border-outline-variant/50 flex flex-col gap-2 shrink-0">
+            {/* Attachment Preview Tray */}
+            {selectedAttachment && (
+              <div className="p-2 sm:p-2.5 rounded-2xl bg-surface-container border border-primary/30 flex items-center justify-between gap-2.5 shadow-2xs animate-in fade-in duration-150">
+                <div className="flex items-center gap-2 min-w-0">
+                  {selectedAttachment.type === 'image' ? (
+                    <img
+                      src={selectedAttachment.dataUrl}
+                      alt="Attachment Preview"
+                      className="w-9 h-9 rounded-lg object-cover border border-outline-variant/60 shrink-0"
+                    />
+                  ) : (
+                    <div className="w-9 h-9 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-on-surface truncate">{selectedAttachment.name}</p>
+                    <div className="flex items-center gap-1.5 text-[10px] text-on-surface-variant font-mono">
+                      <span>{selectedAttachment.sizeMb}</span>
+                      <span>•</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                        Within {MAX_FILE_SIZE_MB} MB Limit
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedAttachment(null)}
+                  className="w-7 h-7 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center justify-center transition-colors shrink-0"
+                  title="Remove attachment"
+                >
+                  <span className="material-symbols-outlined text-[15px]">close</span>
+                </button>
+              </div>
+            )}
+
+            {/* Quick Prompts Horizontal Scroll */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+              {[
+                'Prism formula n = sin((A+dm)/2)/sin(A/2)',
+                'Circle diameter subtends right angle proof',
+                'Concave mirror focal length calculation',
+                'Star triangle Python code',
+              ].map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => handleSendMessage(prompt)}
+                  className="px-2.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-[11px] font-label text-on-surface-variant border border-outline-variant/50 shrink-0 transition-colors whitespace-nowrap"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
+            {/* Main Input Dock Bar */}
+            <div className="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant/70 rounded-2xl p-1.5 focus-within:border-primary transition-colors shadow-2xs">
+              {/* Camera Snap */}
+              <button
+                type="button"
+                onClick={handleCameraSnap}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
+                title="Camera Snap"
+              >
+                <span className="material-symbols-outlined text-[18px]">photo_camera</span>
+              </button>
+
+              {/* Photo Gallery Picker */}
+              <button
+                type="button"
+                onClick={() => imageInputRef.current?.click()}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
+                title="Select Photo (Max 25 MB)"
+              >
+                <span className="material-symbols-outlined text-[18px]">image</span>
+              </button>
+
+              {/* Document / PDF Attachment */}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
+                title="Attach PDF (Max 25 MB)"
+              >
+                <span className="material-symbols-outlined text-[18px]">attach_file</span>
+              </button>
+
+              <input
+                type="text"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                placeholder={
+                  selectedAttachment
+                    ? `Ask about ${selectedAttachment.name}...`
+                    : `Ask Clara or attach question (Max ${MAX_FILE_SIZE_MB} MB)...`
+                }
+                className="flex-1 bg-transparent px-2 py-1.5 text-xs sm:text-sm text-on-surface placeholder:text-outline focus:outline-none font-body min-w-0"
+              />
+
+              <button
+                type="button"
+                onClick={() => handleSendMessage()}
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary hover:bg-primary-container text-on-primary flex items-center justify-center shadow-2xs active:scale-95 transition-all shrink-0"
+                title="Send"
+              >
+                <span className="material-symbols-outlined text-[18px]">send</span>
+              </button>
+            </div>
+
+            {/* Allowed Specs Helper */}
+            <div className="flex items-center justify-between px-1 text-[10px] sm:text-[11px] font-mono text-on-surface-variant">
+              <span>Supports PDF, PNG &amp; JPG</span>
+              <span className="font-bold text-primary">Max {MAX_FILE_SIZE_MB} MB Allowed</span>
+            </div>
+          </div>
+        </div>
+
+        {/* COLUMN 2: TOOLS TAB (Always visible on desktop; on mobile shown only when activeTab === 'tools') */}
+        <div
+          className={`${
+            activeTab === 'tools' ? 'block' : 'hidden lg:block'
+          } lg:col-span-4 space-y-4 overflow-y-auto lg:max-h-[720px] pr-1`}
+        >
+          {/* Neural OCR Document Scanner Card */}
+          <div className="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[20px]">document_scanner</span>
+                <h3 className="font-headline text-base sm:text-lg font-bold text-on-surface">
+                  Neural Paper Scanner
+                </h3>
+              </div>
+              <span className="text-[10px] uppercase font-bold text-primary font-mono bg-primary/10 px-2 py-0.5 rounded-full border border-primary/20">
+                Max 25 MB
+              </span>
+            </div>
+            <p className="text-xs text-on-surface-variant font-body leading-relaxed">
+              Upload any board examination PDF paper, question snapshot, or assignment scan. Clara scans the problem, isolates equations, and generates step solutions with KaTeX formulas.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={handleCameraSnap}
+                className="py-2 px-3 rounded-xl bg-surface-container border border-outline-variant/70 text-on-surface hover:text-primary font-label text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+              >
+                <span className="material-symbols-outlined text-[16px] text-primary">photo_camera</span>
+                <span>Camera Snap</span>
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="py-2 px-3 rounded-xl bg-primary text-on-primary font-label text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
+              >
+                <span className="material-symbols-outlined text-[16px]">upload_file</span>
+                <span>Upload PDF</span>
+              </button>
+            </div>
+          </div>
+
+          {/* High-Yield Mathematical Functions with Live KaTeX & Quick Copy */}
+          <div className="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[20px]">functions</span>
+                <h3 className="font-headline text-base sm:text-lg font-bold text-on-surface">
+                  Live Math Formulas
+                </h3>
+              </div>
+              <span className="text-[10px] uppercase font-bold text-primary font-label">KaTeX Engine</span>
+            </div>
+
+            <div className="space-y-2.5">
+              {[
+                {
+                  id: 'formula-circle',
+                  title: 'Inscribed Angle in Semicircle',
+                  formula: '\\angle ACB = \\frac{1}{2}\\angle AOB = 90^\\circ',
+                  prompt: 'Prove that the angle inscribed in a semicircle is a right angle with geometric proof and diagram.',
+                },
+                {
+                  id: 'formula-prism',
+                  title: 'Prism Deviation Function',
+                  formula: 'n = \\frac{\\sin\\!\\left(\\dfrac{A + \\delta_m}{2}\\right)}{\\sin\\!\\left(\\dfrac{A}{2}\\right)}',
+                  prompt: 'Derive the prism formula n = sin((A+dm)/2)/sin(A/2) for minimum deviation.',
+                },
+                {
+                  id: 'formula-ap',
+                  title: 'Arithmetic Progression Sum',
+                  formula: 'S_n = \\frac{n}{2}[2a + (n - 1)d]',
+                  prompt: 'Derive the sum of n terms in an Arithmetic Progression Sn = n/2[2a + (n-1)d].',
+                },
+                {
+                  id: 'formula-coord',
+                  title: 'Coordinate Distance Function',
+                  formula: 'd = \\sqrt{(x_2 - x_1)^2 + (y_2 - y_1)^2}',
+                  prompt: 'Explain the distance formula between two points in coordinate geometry with derivation.',
+                },
+              ].map((f) => (
+                <div
+                  key={f.id}
+                  className="p-3 rounded-xl bg-surface-container-lowest border border-outline-variant/40 space-y-1.5 shadow-2xs"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-on-surface-variant font-label uppercase font-bold truncate">
+                      {f.title}
+                    </span>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(f.formula, f.id)}
+                        className="p-1 rounded-lg bg-surface-container hover:bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors"
+                        title="Copy LaTeX Formula"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">
+                          {copiedKey === f.id ? 'check' : 'content_copy'}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSendMessage(f.prompt);
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-[10px] font-bold font-mono transition-colors"
+                        title="Ask Clara this formula"
+                      >
+                        Ask Clara
+                      </button>
+                    </div>
+                  </div>
+                  <div
+                    className="overflow-x-auto py-1 text-primary text-center"
+                    dangerouslySetInnerHTML={{ __html: renderKatex(f.formula, true) }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div className="fixed bottom-20 md:bottom-8 left-1/2 -translate-x-1/2 px-4 py-2 rounded-full bg-[#3a302a] text-[#faf5ee] shadow-xl flex items-center gap-2 text-xs font-label z-50 animate-fade-in border border-outline-variant/30">
+          <span className="material-symbols-outlined text-[15px] text-primary-fixed-dim">info</span>
+          <span>{toastMsg}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function AiTutorPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="p-8 text-center text-xs font-label text-on-surface-variant">
+          Loading AI Neural Solver...
+        </div>
+      }
+    >
+      <AiTutorContent />
+    </Suspense>
+  );
+}

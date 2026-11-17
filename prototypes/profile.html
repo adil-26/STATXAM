@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500;600;700&amp;family=Space+Grotesk:wght@500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "error": "#ffb4ab", "on-primary-container": "#006970", "surface-bright": "#363941", "secondary": "#ddb7ff", "surface": "#10131a", "surface-tint": "#00dbe9", "surface-variant": "#32353d", "on-surface-variant": "#b9cacb", "on-background": "#e1e2ec", "on-secondary": "#490080", "on-primary-fixed-variant": "#004f54", "primary": "#dbfcff", "surface-container": "#1d1f27", "on-error-container": "#ffdad6", "inverse-on-surface": "#2d3038", "tertiary": "#d8ffe7", "on-tertiary-fixed-variant": "#005236", "on-secondary-fixed": "#2c0051", "on-tertiary": "#003824", "secondary-fixed": "#f0dbff", "tertiary-fixed-dim": "#4edea3", "primary-fixed-dim": "#00dbe9", "on-secondary-container": "#d6a9ff", "secondary-fixed-dim": "#ddb7ff", "error-container": "#93000a", "background": "#10131a", "on-tertiary-fixed": "#002113", "tertiary-fixed": "#6ffbbe", "on-tertiary-container": "#006d4a", "outline-variant": "#3b494b", "on-primary": "#00363a", "on-surface": "#e1e2ec", "primary-container": "#00f0ff", "surface-container-high": "#272a32", "tertiary-container": "#65f2b5", "surface-dim": "#10131a", "on-primary-fixed": "#002022", "on-error": "#690005", "inverse-primary": "#006970", "outline": "#849495", "surface-container-lowest": "#0b0e15", "surface-container-low": "#191b23", "on-secondary-fixed-variant": "#6900b3", "primary-fixed": "7df4ff", "inverse-surface": "#e1e2ec", "secondary-container": "#6f00be", "surface-container-highest": "#32353d" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "space-sm": "0.5rem", "space-lg": "1.5rem", "space-xs": "0.25rem", "space-md": "1rem", "gutter": "1rem", "space-xl": "2rem", "margin": "1rem" }, fontFamily: { "label-md": ["JetBrains Mono"], "stat-display": ["JetBrains Mono"], "headline-lg": ["Space Grotesk"], "headline-xl": ["Space Grotesk"], "body-md": ["Inter"], "headline-xl-mobile": ["Space Grotesk"], "headline-md": ["Space Grotesk"], "label-sm": ["JetBrains Mono"], "stat-md": ["JetBrains Mono"], "body-sm": ["Inter"], "body-lg": ["Inter"] }, fontSize: { "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.04em", "fontWeight": "500" }], "stat-display": ["32px", { "lineHeight": "36px", "letterSpacing": "-0.04em", "fontWeight": "700" }], "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "headline-xl": ["36px", { "lineHeight": "44px", "letterSpacing": "-0.03em", "fontWeight": "700" }], "body-md": ["15px", { "lineHeight": "22px", "letterSpacing": "0em", "fontWeight": "400" }], "headline-xl-mobile": ["30px", { "lineHeight": "38px", "letterSpacing": "-0.02em", "fontWeight": "700" }], "headline-md": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }], "label-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "500" }], "stat-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.02em", "fontWeight": "600" }], "body-sm": ["13px", { "lineHeight": "18px", "letterSpacing": "0em", "fontWeight": "400" }], "body-lg": ["17px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "400" }] } } } };</script><style>@layer base{html,body{width:100%;margin:0;padding:0;background-color:#10131a;color:#e1e2ec;font-family:'Inter',sans-serif;}body{overscroll-behavior:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style></head><body class="bg-surface text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-surface-container-lowest/85 backdrop-blur-xl shadow-[0_1px_12px_rgba(0,0,0,0.4)]"><div class="h-16 px-margin flex items-center justify-between gap-space-sm"><a href="home.html" aria-label="Go to Home" class="flex items-center gap-space-sm min-w-0 flex-shrink cursor-pointer hover:opacity-90 transition-opacity"><img alt="StatXam Logo" class="h-8 w-auto object-contain flex-shrink-0" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD7jfJEauXk23IeN3au45FgmvR4CocP-Qtx01CpWXvaLn7vsdMfato2u2PyhqfqAFsM81_zE9RdFBikdhiCOsELiiXHd6DQEvlF9-zpXyKxXocxXMB_Y5s14fmpjq0bdC7XSjLcEcd2FK0NppCh1dHX_9xEAewez0qUV9tFsuPCRj06F2qKM9AKGcIhBsWFNlZrIg8voQ2xX0HH098_aDwmVXwxH0hHTiC57nSiESRL"/><div class="flex flex-col min-w-0"><div class="flex items-center gap-space-xs"><span class="font-headline-md text-headline-md tracking-tight text-primary-container truncate">StatXam</span></div><div class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-tertiary-container animate-pulse"></span><span class="font-label-sm text-label-sm text-tertiary tracking-wider truncate uppercase">ONLINE - REMOTE API</span></div></div></a><div class="flex items-center gap-space-sm flex-shrink-0"><div class="flex items-center gap-1 px-2.5 py-1 rounded-full bg-surface-container-high/80 text-on-surface"><span class="material-symbols-outlined text-primary-container text-[18px]">local_fire_department</span><span class="font-label-sm text-label-sm text-primary font-semibold">7 Days</span></div><a href="profile.html" aria-label="Open Profile" class="h-9 w-9 rounded-full p-0.5 bg-surface-container-highest flex items-center justify-center cursor-pointer hover:ring-2 hover:ring-primary-container transition-all"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDYz7LNgDpP0_-v2fINlidy4Fj2w1pfCFUhFkd7H-89srni8b-3Wy4TDInR6TNuOn4W2Ucy1NYd9TXciooYatxltgyB40xCEyNbmxi58GG8S0vaPR7_DE_qNInL71Hb2-LwiO6cn5TorclWYzQOxb7dw-hzvfnjHjkUxer6LGSxENP6Lwe68PCeDq1_dORFT4fOMdT8RzkWk1T-4yLthvB3bSoroSolatHZd7gCXmpq"/></a></div></div></header><main class="flex flex-col relative w-full pt-16 pb-24 bg-surface min-h-screen"><div class="flex flex-col w-full px-margin pb-6 gap-space-lg">
+<!-- Profile Header Card (Bento Style with Cyber Halo) -->
+<div class="relative overflow-hidden rounded-xl bg-surface-container p-space-md shadow-xl">
+<div class="absolute -right-10 -top-10 w-36 h-36 rounded-full bg-primary-container/10 blur-2xl pointer-events-none"></div>
+<div class="absolute right-4 top-4 flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-container-highest text-primary">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container animate-pulse"></span>
+<span class="font-label-sm text-label-sm uppercase">Active Pilot</span>
+</div>
+<div class="flex items-start gap-space-md">
+<div class="relative flex-shrink-0">
+<div class="w-16 h-16 rounded-xl overflow-hidden bg-surface-container-high shadow-lg">
+<img alt="Ananya Sharma" class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDYz7LNgDpP0_-v2fINlidy4Fj2w1pfCFUhFkd7H-89srni8b-3Wy4TDInR6TNuOn4W2Ucy1NYd9TXciooYatxltgyB40xCEyNbmxi58GG8S0vaPR7_DE_qNInL71Hb2-LwiO6cn5TorclWYzQOxb7dw-hzvfnjHjkUxer6LGSxENP6Lwe68PCeDq1_dORFT4fOMdT8RzkWk1T-4yLthvB3bSoroSolatHZd7gCXmpq"/>
+</div>
+<div class="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-surface-container-lowest flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-tertiary-container" style="font-variation-settings: 'FILL' 1;">verified</span>
+</div>
+</div>
+<div class="flex flex-col min-w-0 flex-1">
+<div class="flex items-center gap-1.5">
+<span class="font-headline-md text-headline-md text-on-surface truncate">Ananya Sharma</span>
+</div>
+<p class="font-label-md text-label-md text-primary-container flex items-center gap-1 mt-0.5">
+<span class="material-symbols-outlined text-[15px]">flag</span>
+<span class="truncate">JEE Advanced 2025 Aspirant</span>
+</p>
+<div class="mt-2.5 flex items-center gap-1.5">
+<div class="px-2 py-0.5 rounded-md bg-secondary-container/60 text-secondary-fixed flex items-center gap-1">
+<span class="material-symbols-outlined text-[13px]">school</span>
+<span class="font-label-sm text-label-sm">Target: IIT Bombay CS</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Quick Stats HUD Strip -->
+<div class="grid grid-cols-3 gap-2 mt-4 pt-3 bg-surface-container-lowest/60 rounded-lg p-2.5">
+<div class="flex flex-col items-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">AIR Rank Est.</span>
+<span class="font-stat-md text-stat-md text-primary-container mt-0.5">#412</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Accuracy</span>
+<span class="font-stat-md text-stat-md text-tertiary-container mt-0.5">89.4%</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">Streak</span>
+<span class="font-stat-md text-stat-md text-secondary mt-0.5">7 Days</span>
+</div>
+</div>
+</div>
+<!-- Auth & Security Section (Phase 0/1 Blueprint) -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary-container text-[18px]">lock_reset</span>
+<span class="font-label-md text-label-md text-on-surface uppercase tracking-wider">Auth &amp; Telemetry Security</span>
+</div>
+<span class="font-label-sm text-label-sm text-tertiary px-1.5 py-0.5 rounded bg-surface-container-high">Level 2 MFA</span>
+</div>
+<div class="flex flex-col gap-2 bg-surface-container rounded-xl p-space-md shadow-lg">
+<!-- Phone Number Row -->
+<div class="flex items-center justify-between py-1.5">
+<div class="flex items-center gap-2.5 min-w-0">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center flex-shrink-0 text-primary-container">
+<span class="material-symbols-outlined text-[18px]">smartphone</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-body-sm text-body-sm text-on-surface-variant">Primary Mobile ID</span>
+<span class="font-label-md text-label-md text-on-surface font-semibold truncate">+91 98765 43210</span>
+</div>
+</div>
+<div class="flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container-highest text-tertiary-container">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="font-label-sm text-label-sm uppercase">Verified</span>
+</div>
+</div>
+<!-- Telegram Link & Reset Row -->
+<div class="flex flex-col gap-2 pt-2 bg-surface-container-low rounded-lg p-3">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-7 h-7 rounded-lg bg-secondary-container/50 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[16px]">send</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-on-surface font-medium">Reset via Telegram OTP</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">Instant 2FA bypass recovery without email</span>
+</div>
+</div>
+</div>
+<div class="flex items-center justify-between mt-1 pt-2 bg-surface-container-lowest/80 rounded px-2.5 py-1.5">
+<div class="flex items-center gap-1.5">
+<span class="w-2 h-2 rounded-full bg-tertiary-container"></span>
+<span class="font-label-sm text-label-sm text-primary">@StatXamAuthBot linked</span>
+</div>
+<button class="font-label-sm text-label-sm px-2 py-1 rounded bg-surface-container-highest text-primary-container hover:bg-primary-container hover:text-on-primary transition-all active:scale-95" id="tg-test-otp-btn">
+            Trigger Test OTP
+          </button>
+</div>
+</div>
+</div>
+</div>
+<!-- Architecture & Capacitor Status Panel -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center justify-between px-1">
+<div class="flex items-center gap-1.5">
+<span class="material-symbols-outlined text-primary-container text-[18px]">terminal</span>
+<span class="font-label-md text-label-md text-on-surface uppercase tracking-wider">Architecture &amp; Native Bridge</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-mono">CAPACITOR 8</span>
+</div>
+<div class="bg-surface-container rounded-xl p-space-md shadow-lg flex flex-col gap-3">
+<!-- Build Version & Remote Host Info -->
+<div class="grid grid-cols-2 gap-2">
+<div class="bg-surface-container-lowest rounded-lg p-2.5 flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">APK Shell Runtime</span>
+<span class="font-label-md text-label-md text-primary font-semibold mt-0.5">v2.4.0 (Build 240)</span>
+<span class="font-label-sm text-label-sm text-tertiary mt-1 flex items-center gap-1">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary-container"></span>Production Channel
+          </span>
+</div>
+<div class="bg-surface-container-lowest rounded-lg p-2.5 flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Remote Supabase</span>
+<span class="font-label-md text-label-md text-primary font-semibold mt-0.5 truncate">wdrkjctckwvg...</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-1 truncate">statxamp.vercel.app</span>
+</div>
+</div>
+<!-- Offline Cache HUD Bar -->
+<div class="bg-surface-container-low rounded-lg p-2.5 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary-container text-[20px]">folder_zip</span>
+<div class="flex flex-col">
+<span class="font-body-sm text-body-sm text-on-surface font-medium">Offline Papers Cache</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">4 Board Papers stored locally</span>
+</div>
+</div>
+<div class="text-right">
+<span class="font-stat-md text-stat-md text-primary-container font-mono">12.4 MB</span>
+</div>
+</div>
+<!-- Native Plugin Suite Badges -->
+<div class="flex flex-col gap-1.5 pt-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant uppercase">Active Native Plugins</span>
+<div class="flex flex-wrap gap-1.5">
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container-highest text-on-surface">@capacitor/camera</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container-highest text-on-surface">@capacitor/haptics</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container-highest text-on-surface">@capacitor/keyboard</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container-highest text-on-surface">@capacitor/status-bar</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container-highest text-on-surface">@capacitor/network</span>
+<span class="font-label-sm text-label-sm px-2 py-0.5 rounded bg-surface-container-highest text-on-surface">@capacitor/share</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Preferences & Toggles Section -->
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-1.5 px-1">
+<span class="material-symbols-outlined text-primary-container text-[18px]">tune</span>
+<span class="font-label-md text-label-md text-on-surface uppercase tracking-wider">Exam Environment Tuning</span>
+</div>
+<div class="bg-surface-container rounded-xl divide-y divide-transparent flex flex-col shadow-lg overflow-hidden">
+<!-- Toggle 1: Cyber Mode -->
+<div class="flex items-center justify-between p-3.5 hover:bg-surface-container-high/40 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[18px]">dark_mode</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-on-surface font-medium">Dark Cyber HUD</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">High-contrast obsidian theme for zero eye fatigue</span>
+</div>
+</div>
+<button aria-label="Dark mode active" class="relative w-12 h-6 rounded-full bg-primary-container flex items-center p-0.5 transition-colors focus:outline-none">
+<span class="w-5 h-5 rounded-full bg-on-primary shadow-sm transform translate-x-6 transition-transform"></span>
+</button>
+</div>
+<!-- Toggle 2: Haptic Feedback -->
+<div class="flex items-center justify-between p-3.5 hover:bg-surface-container-high/40 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[18px]">vibration</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-on-surface font-medium">Haptic Answer Feedback</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Tactile click pulse on MCQ option selection</span>
+</div>
+</div>
+<button aria-label="Haptic feedback active" class="relative w-12 h-6 rounded-full bg-primary-container flex items-center p-0.5 transition-colors focus:outline-none">
+<span class="w-5 h-5 rounded-full bg-on-primary shadow-sm transform translate-x-6 transition-transform"></span>
+</button>
+</div>
+<!-- Toggle 3: Auto-Download -->
+<div class="flex items-center justify-between p-3.5 hover:bg-surface-container-high/40 transition-colors">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[18px]">cloud_sync</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-md text-body-md text-on-surface font-medium">Auto-Download Board Papers</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">Cache verified NTA papers over Wi-Fi only</span>
+</div>
+</div>
+<button aria-label="Auto-download active" class="relative w-12 h-6 rounded-full bg-primary-container flex items-center p-0.5 transition-colors focus:outline-none">
+<span class="w-5 h-5 rounded-full bg-on-primary shadow-sm transform translate-x-6 transition-transform"></span>
+</button>
+</div>
+</div>
+</div>
+<!-- Actions & Danger Zone -->
+<div class="flex flex-col gap-2.5 pt-1">
+<!-- Telemetry Export -->
+<button class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-surface-container text-primary hover:bg-surface-container-high transition-colors active:scale-[0.99] shadow-md">
+<span class="material-symbols-outlined text-[18px] text-primary-container">download_for_offline</span>
+<span class="font-label-md text-label-md font-semibold">Export Performance Telemetry (.json)</span>
+</button>
+<!-- Cache Clear -->
+<button class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-surface-container text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high transition-colors active:scale-[0.99] shadow-md" id="clear-cache-btn">
+<span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+<span class="font-label-md text-label-md font-medium">Clear Local Storage Cache (12.4 MB)</span>
+</button>
+<!-- Sign Out Button (Muted red outline styling without using border utilities) -->
+<div class="w-full rounded-xl p-[1px] bg-error/20 hover:bg-error/40 transition-all">
+<button onclick="window.location.href='sign-in.html'" class="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-surface-container-lowest text-error hover:bg-error/10 transition-colors active:scale-[0.99]">
+<span class="material-symbols-outlined text-[18px]">logout</span>
+<span class="font-label-md text-label-md font-semibold tracking-wide">Sign Out From Terminal</span>
+</button>
+</div>
+</div>
+<!-- Toast Notification Dynamic Target -->
+<div class="fixed bottom-20 left-4 right-4 z-50 transform translate-y-32 opacity-0 transition-all duration-300 pointer-events-none flex items-center justify-center" id="status-toast">
+<div class="bg-surface-bright text-on-surface px-4 py-2.5 rounded-full shadow-2xl flex items-center gap-2 text-sm font-label-md">
+<span class="material-symbols-outlined text-primary-container text-[18px]">info</span>
+<span id="toast-message">Telemetry payload prepared</span>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    const toast = document.getElementById('status-toast');
+    const toastMsg = document.getElementById('toast-message');
+    const triggerBtn = document.getElementById('tg-test-otp-btn');
+    const clearBtn = document.getElementById('clear-cache-btn');
+
+    function showNotice(msg) {
+      if (!toast) return;
+      toastMsg.textContent = msg;
+      toast.classList.remove('translate-y-32', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+      setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-32', 'opacity-0');
+      }, 2500);
+    }
+
+    if (triggerBtn) {
+      triggerBtn.addEventListener('click', () => {
+        showNotice('Telegram OTP dispatched to @StatXamAuthBot');
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        showNotice('Local cache cleared (12.4 MB freed)');
+      });
+    }
+  })();
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_-1px_16px_rgba(0,0,0,0.6)]" data-active-classes="text-primary-container font-semibold [&amp;_span.indicator]:opacity-100 [&amp;_.hud-dot]:bg-primary-container [&amp;_.hud-dot]:shadow-[0_0_8px_#00f0ff]"><div class="flex justify-around items-center h-16 px-space-xs"><a class="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] py-1 text-on-surface-variant hover:text-on-surface transition-colors relative" data-path="home" href="home.html"><span class="material-symbols-outlined text-[24px]">home</span><span class="font-label-sm text-label-sm mt-0.5">Home</span><span class="hud-dot w-1 h-1 rounded-full bg-transparent mt-0.5 transition-all"></span></a><a class="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] py-1 text-on-surface-variant hover:text-on-surface transition-colors relative" data-path="practice" href="practice.html"><span class="material-symbols-outlined text-[24px]">menu_book</span><span class="font-label-sm text-label-sm mt-0.5">Practice</span><span class="hud-dot w-1 h-1 rounded-full bg-transparent mt-0.5 transition-all"></span></a><a class="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] py-1 text-on-surface-variant hover:text-on-surface transition-colors relative" data-path="ai-tutor" href="ai-tutor.html"><div class="relative flex items-center justify-center"><span class="material-symbols-outlined text-[24px]">psychology</span><span class="absolute -top-1 -right-2 px-1 py-0.2 rounded-full bg-primary-container text-on-primary font-label-sm text-[9px] shadow-[0_0_10px_rgba(0,240,255,0.6)] font-bold">AI</span></div><span class="font-label-sm text-label-sm mt-0.5">AI Tutor</span><span class="hud-dot w-1 h-1 rounded-full bg-transparent mt-0.5 transition-all"></span></a><a class="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] py-1 text-on-surface-variant hover:text-on-surface transition-colors relative" data-path="progress" href="progress.html"><span class="material-symbols-outlined text-[24px]">trending_up</span><span class="font-label-sm text-label-sm mt-0.5">Progress</span><span class="hud-dot w-1 h-1 rounded-full bg-transparent mt-0.5 transition-all"></span></a><a aria-current="page" class="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] py-1 transition-colors relative text-primary-container font-semibold [&amp;_span.indicator]:opacity-100 [&amp;_.hud-dot]:bg-primary-container [&amp;_.hud-dot]:shadow-[0_0_8px_#00f0ff]" data-path="profile" href="profile.html"><span class="material-symbols-outlined text-[24px]">person</span><span class="font-label-sm text-label-sm mt-0.5">Profile</span><span class="hud-dot w-1 h-1 rounded-full bg-transparent mt-0.5 transition-all"></span></a></div></nav>
+<script>
+  // Telemetry Export functionality
+  document.querySelectorAll('button').forEach(btn => {
+    if (btn.textContent.includes('Export Performance Telemetry')) {
+      btn.onclick = () => {
+        const payload = {
+          candidate: "Ananya Sharma",
+          examGoal: "JEE Advanced 2025",
+          targetInstitution: "IIT Bombay CS",
+          estimatedAirRank: 412,
+          currentAccuracy: "89.4%",
+          syncStreakDays: 7,
+          totalQuestionsSolved: 1280,
+          topicProficiencies: {
+            electromagnetism: 0.92,
+            organicMechanisms: 0.81,
+            thermodynamics: 0.68,
+            rotationalDynamics: 0.54
+          },
+          security: {
+            authMode: "Telegram 2FA + Phone OTP",
+            deviceVault: "Capacitor Secure Storage",
+            cipher: "SHA-512"
+          },
+          timestamp: new Date().toISOString()
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'statxam_cadet_telemetry_2025.json';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        const toast = document.getElementById('status-toast');
+        const toastMsg = document.getElementById('toast-message');
+        if (toast && toastMsg) {
+          toastMsg.textContent = 'Downloaded statxam_cadet_telemetry_2025.json';
+          toast.classList.remove('translate-y-32', 'opacity-0');
+          toast.classList.add('translate-y-0', 'opacity-100');
+          setTimeout(() => {
+            toast.classList.remove('translate-y-0', 'opacity-100');
+            toast.classList.add('translate-y-32', 'opacity-0');
+          }, 2600);
+        }
+      };
+    }
+  });
+
+  // Interactive toggle switches in Preferences
+  document.querySelectorAll('button[aria-label*="active"]').forEach(switchBtn => {
+    switchBtn.addEventListener('click', function() {
+      const thumb = this.querySelector('span');
+      const isChecked = thumb.classList.contains('translate-x-6');
+      if (isChecked) {
+        thumb.classList.remove('translate-x-6');
+        thumb.classList.add('translate-x-0');
+        this.classList.remove('bg-primary-container');
+        this.classList.add('bg-surface-container-highest');
+      } else {
+        thumb.classList.remove('translate-x-0');
+        thumb.classList.add('translate-x-6');
+        this.classList.remove('bg-surface-container-highest');
+        this.classList.add('bg-primary-container');
+      }
+    });
+  });
+</script>
+</body></html>

@@ -1,0 +1,16 @@
+{
+  "name": "StatXam — 20-Year Board Exam Bank",
+  "short_name": "StatXam",
+  "description": "Pan-India 28-State Board Exam Question Bank & CBT Vault",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#faf5ee",
+  "theme_color": "#faf5ee",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
