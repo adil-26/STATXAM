@@ -32,11 +32,10 @@ export default function BottomNav() {
               key={tab.href}
               href={tab.href}
               onClick={() => triggerHaptic('light')}
-              className={`flex flex-col items-center justify-center flex-1 h-full min-w-[56px] transition-colors ${
-                isActive
-                  ? 'text-primary font-bold'
-                  : 'text-on-surface-variant hover:text-on-surface font-medium'
-              }`}
+              className={`flex flex-col items-center justify-center flex-1 h-full min-w-[56px] transition-colors ${isActive
+                ? 'text-primary font-bold'
+                : 'text-on-surface-variant hover:text-on-surface font-medium'
+                }`}
             >
               <span
                 className="material-symbols-outlined text-[22px]"

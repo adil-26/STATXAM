@@ -3,6 +3,7 @@ import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import AppHeader from '@/components/AppHeader';
 import BottomNav from '@/components/BottomNav';
+import AiLaunchAnimation from '@/components/AiLaunchAnimation';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -41,6 +42,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full bg-surface text-on-surface font-body antialiased flex flex-col selection:bg-primary/20">
         <AuthProvider>
+          <AiLaunchAnimation />
           <AppHeader />
           <main className="flex-1 w-full pt-16 md:pt-20 pb-24 md:pb-12 bg-surface relative min-h-screen">
             {children}

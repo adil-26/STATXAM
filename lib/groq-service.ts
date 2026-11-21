@@ -257,8 +257,8 @@ Ensure official step rubrics, realistic exam stems, and standard distractors. Re
         subject: subject.toLowerCase().includes('math')
           ? 'mathematics'
           : subject.toLowerCase().includes('sci')
-          ? 'science'
-          : 'general',
+            ? 'science'
+            : 'general',
         topic: item.topic || chapterName,
         language: (language as LanguageMedium) || 'english',
         stem: item.stem,

@@ -1252,9 +1252,17 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
       {/* Top Header Bar */}
       <div className="shrink-0 flex items-center justify-between gap-2 mb-2 sm:mb-4">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg shrink-0 border border-primary/20 shadow-2xs">
-            <span className="material-symbols-outlined text-[19px] sm:text-[22px]">psychology</span>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              triggerHaptic('medium');
+              window.dispatchEvent(new CustomEvent('statxam_replay_ai_intro'));
+            }}
+            title="Tap to play AI Launch Intro Animation"
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-primary/10 hover:bg-primary/20 text-primary flex items-center justify-center font-bold text-lg shrink-0 border border-primary/20 shadow-2xs active:scale-95 transition-all"
+          >
+            <span className="material-symbols-outlined text-[19px] sm:text-[22px] animate-pulse">psychology</span>
+          </button>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h1 className="font-headline text-sm sm:text-2xl font-bold text-on-surface truncate">

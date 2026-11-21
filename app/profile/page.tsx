@@ -362,9 +362,21 @@ export default function ProfilePage() {
                   Remote Backend &amp; DB
                 </span>
                 <span className="text-xs font-bold text-on-surface mt-0.5 truncate font-headline">Supabase Cloud</span>
-                <span className="text-[11px] text-on-surface-variant mt-1 truncate font-mono">statxamp.vercel.app/api</span>
+                <span className="text-[11px] text-on-surface-variant mt-1 truncate font-mono">statxam.vercel.app/api</span>
               </div>
             </div>
+
+            {/* AI Neural Launch Animation Trigger */}
+            <button
+              onClick={() => {
+                triggerHaptic('medium');
+                window.dispatchEvent(new CustomEvent('statxam_replay_ai_intro'));
+              }}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-primary/15 via-[#f0a878]/15 to-primary/15 hover:from-primary/25 hover:to-primary/25 text-primary border border-primary/30 text-xs font-headline font-bold transition-all active:scale-98 shadow-2xs"
+            >
+              <span className="material-symbols-outlined text-[18px]">psychology</span>
+              <span>Replay AI Neural Launch Intro</span>
+            </button>
 
             {/* Offline Storage Cache */}
             <div className="bg-surface-container-lowest rounded-xl p-3.5 border border-outline-variant/60 flex items-center justify-between gap-3 shadow-xs">
