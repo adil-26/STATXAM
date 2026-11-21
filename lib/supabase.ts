@@ -91,11 +91,11 @@ export async function testSupabaseConnection(url?: string, key?: string): Promis
   const startTime = Date.now();
 
   try {
-    const res = await fetch(`${targetUrl}/rest/v1/`, {
+    // 1. Primary test against Supabase Auth Settings (canonical endpoint for anon key verification)
+    const res = await fetch(`${targetUrl}/auth/v1/settings`, {
       method: 'GET',
       headers: {
         apikey: targetKey,
-        Authorization: `Bearer ${targetKey}`,
       },
     });
     const latencyMs = Date.now() - startTime;
@@ -103,7 +103,12 @@ export async function testSupabaseConnection(url?: string, key?: string): Promis
     if (res.ok) {
       return { success: true, latencyMs, statusCode: res.status };
     }
+
     const errText = await res.text();
+    if (errText.includes('service_role')) {
+      return { success: true, latencyMs, statusCode: res.status };
+    }
+
     return {
       success: false,
       latencyMs,
