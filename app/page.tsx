@@ -1,66 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { triggerHaptic } from '@/lib/native-permissions';
 import { TestArenaModal } from '@/components/TestArenaModal';
-import { ALL_INDIAN_BOARDS, BoardDefinition } from '@/lib/boards-catalog';
-import { PilotProfile, LanguageMedium } from '@/lib/types';
 import { useExamMode } from '@/components/ExamModeContext';
 import { IeltsDuolingoPath } from '@/components/IeltsDuolingoPath';
 
 export default function HomePage() {
-  const { user, loading, signup } = useAuth();
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const { mode } = useExamMode();
   const [activeModalPaper, setActiveModalPaper] = useState<string | null>(null);
-
-  // Onboarding Wizard State (for new/unauthenticated users)
-  const [onboardStep, setOnboardStep] = useState<1 | 2 | 3>(1);
-  const [selectedLang, setSelectedLang] = useState<LanguageMedium>('english');
-  const [selectedBoard, setSelectedBoard] = useState<BoardDefinition>(
-    ALL_INDIAN_BOARDS.find((b) => b.id === 'cbse') || ALL_INDIAN_BOARDS[0]
-  );
-  const [fullName, setFullName] = useState('');
-  const [mobile, setMobile] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
 
   const handleOpenTest = (title: string) => {
     triggerHaptic('medium');
     setActiveModalPaper(title);
   };
 
-  const handleCompleteSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!fullName.trim() || !mobile.trim()) {
-      setFormError('Please fill in your name and 10-digit mobile number');
-      return;
+  // Automatically redirect unauthenticated users to /auth/login/
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace('/auth/login');
     }
-    triggerHaptic('medium');
-    setIsSubmitting(true);
-    setFormError(null);
+  }, [user, loading, router]);
 
-    const res = await signup(
-      {
-        fullName: fullName.trim(),
-        mobile: mobile.startsWith('+91') ? mobile.trim() : `+91 ${mobile.trim()}`,
-        language: selectedLang,
-        targetExam: `${selectedBoard.name} (${selectedBoard.classes[0]})`,
-        targetInstitution: `${selectedBoard.state} State Merit Top 500`,
-      },
-      password || 'student123'
-    );
-
-    setIsSubmitting(false);
-    if (!res.success && res.error) {
-      setFormError(res.error);
-    }
-  };
-
-  // 1. Loading State
-  if (loading) {
+  // 1. Loading or Redirecting State
+  if (loading || !user) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
         <div className="w-12 h-12 border-3 border-primary border-t-transparent rounded-full animate-spin mb-4" />
@@ -80,314 +48,7 @@ export default function HomePage() {
     );
   }
 
-  // 2. Unauthenticated State: Multistep Pan-India Scholar Onboarding & Setup
-  if (!user) {
-    return (
-      <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 py-6 md:py-10 space-y-8 animate-in fade-in duration-300">
-        {/* Onboarding Header */}
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed-variant text-xs font-label font-bold border border-primary/20">
-            <span className="material-symbols-outlined text-[16px] text-primary">school</span>
-            <span>All-India State Boards & Competitive Entrance Platform</span>
-          </div>
-          <h1 className="font-headline text-3xl sm:text-5xl font-bold tracking-tight text-on-surface">
-            Begin Your 20-Year Board Masterclass
-          </h1>
-          <p className="text-xs sm:text-sm text-on-surface-variant max-w-xl mx-auto font-body">
-            Master authentic solved previous year questions, Google Drive exam papers, and official step rubrics customized to your state board.
-          </p>
-        </div>
-
-        {/* Setup Wizard Card */}
-        <div className="bg-surface-container-lowest border border-outline-variant/60 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
-          {/* Step Indicators */}
-          <div className="flex items-center justify-between border-b border-outline-variant/40 pb-4">
-            <div className="flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-primary text-on-primary text-xs font-bold flex items-center justify-center font-mono">
-                {onboardStep}
-              </span>
-              <span className="text-xs font-label font-bold text-on-surface">
-                {onboardStep === 1
-                  ? 'Step 1: Choose Language'
-                  : onboardStep === 2
-                    ? 'Step 2: Choose Your Board'
-                    : 'Step 3: Scholar Profile'}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              {[1, 2, 3].map((step) => (
-                <div
-                  key={step}
-                  className={`w-6 h-1.5 rounded-full transition-colors ${step <= onboardStep ? 'bg-primary' : 'bg-surface-container'
-                    }`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* STEP 1: Language / Medium Selection */}
-          {onboardStep === 1 && (
-            <div className="space-y-5 animate-in fade-in">
-              <div className="space-y-1">
-                <h3 className="font-headline text-xl font-bold text-on-surface">
-                  What is your preferred study medium?
-                </h3>
-                <p className="text-xs text-on-surface-variant">
-                  Question papers, step-by-step marking rubrics, and AI explanations will adapt to your language.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { id: 'english', label: 'English', native: 'English Medium', icon: 'translate' },
-                  { id: 'hindi', label: 'Hindi', native: 'हिंदी माध्यम', icon: 'auto_stories' },
-                  { id: 'punjabi', label: 'Punjabi', native: 'ਪੰਜਾਬੀ ਮਾਧਿਅਮ', icon: 'history_edu' },
-                  { id: 'tamil', label: 'Tamil', native: 'தமிழ் வழி', icon: 'temple_hindu' },
-                  { id: 'bengali', label: 'Bengali', native: 'বাংলা মাধ্যম', icon: 'palette' },
-                  { id: 'telugu', label: 'Telugu', native: 'తెలుగు మాధ్యమం', icon: 'water_drop' },
-                  { id: 'marathi', label: 'Marathi', native: 'मराठी माध्यम', icon: 'security' },
-                  { id: 'gujarati', label: 'Gujarati', native: 'ગુજરાતી માધ્યમ', icon: 'local_activity' },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      triggerHaptic('light');
-                      setSelectedLang(item.id as any);
-                    }}
-                    className={`p-4 rounded-2xl border text-left transition-all ${selectedLang === item.id
-                      ? 'bg-primary-fixed border-primary text-on-primary-fixed shadow-xs'
-                      : 'bg-surface-container-low border-outline-variant/50 text-on-surface hover:bg-surface-container'
-                      }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="material-symbols-outlined text-[20px] text-primary">
-                        {item.icon}
-                      </span>
-                      {selectedLang === item.id && (
-                        <span className="material-symbols-outlined text-primary text-[18px]">
-                          check_circle
-                        </span>
-                      )}
-                    </div>
-                    <p className="font-bold text-xs sm:text-sm">{item.label}</p>
-                    <p className="text-[11px] text-on-surface-variant line-clamp-1">{item.native}</p>
-                  </button>
-                ))}
-              </div>
-
-              <div className="pt-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic('light');
-                    setOnboardStep(2);
-                  }}
-                  className="px-6 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold uppercase tracking-wider shadow-xs hover:bg-primary/90 flex items-center gap-1.5"
-                >
-                  <span>Next: Select State Board</span>
-                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: State / Central Board Selection */}
-          {onboardStep === 2 && (
-            <div className="space-y-5 animate-in fade-in">
-              <div className="space-y-1">
-                <h3 className="font-headline text-xl font-bold text-on-surface">
-                  Which examination board are you targeting?
-                </h3>
-                <p className="text-xs text-on-surface-variant">
-                  We have cataloged solved 20-year papers (2005–2024) across all Indian state and central boards.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto pr-1">
-                {ALL_INDIAN_BOARDS.map((b) => (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => {
-                      triggerHaptic('light');
-                      setSelectedBoard(b);
-                    }}
-                    className={`p-3.5 rounded-2xl border text-left transition-all flex items-start justify-between ${selectedBoard.id === b.id
-                      ? 'bg-primary-fixed border-primary shadow-xs'
-                      : 'bg-surface-container-low border-outline-variant/50 hover:bg-surface-container'
-                      }`}
-                  >
-                    <div className="space-y-1 min-w-0 pr-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs font-bold text-primary">
-                          {b.code}
-                        </span>
-                        <span className="text-[10px] text-on-surface-variant font-label">
-                          • {b.region} Zone
-                        </span>
-                      </div>
-                      <h4 className="font-headline font-bold text-sm text-on-surface truncate">
-                        {b.name}
-                      </h4>
-                      <p className="text-[10px] text-on-surface-variant truncate">
-                        {b.state}
-                      </p>
-                    </div>
-
-                    <div className="shrink-0 pt-0.5">
-                      {selectedBoard.id === b.id ? (
-                        <span className="material-symbols-outlined text-primary text-[20px]">
-                          check_circle
-                        </span>
-                      ) : (
-                        <span className="material-symbols-outlined text-on-surface-variant/40 text-[18px]">
-                          radio_button_unchecked
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="pt-4 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setOnboardStep(1)}
-                  className="px-4 py-2 rounded-xl bg-surface-container text-xs font-bold text-on-surface hover:bg-surface-container-high"
-                >
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    triggerHaptic('light');
-                    setOnboardStep(3);
-                  }}
-                  className="px-6 py-2.5 rounded-xl bg-primary text-on-primary text-xs font-bold uppercase tracking-wider shadow-xs hover:bg-primary/90 flex items-center gap-1.5"
-                >
-                  <span>Next: Scholar Profile</span>
-                  <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: Scholar Details & Launch */}
-          {onboardStep === 3 && (
-            <form onSubmit={handleCompleteSignup} className="space-y-5 animate-in fade-in">
-              <div className="space-y-1">
-                <h3 className="font-headline text-xl font-bold text-on-surface">
-                  Create Your Scholar Account
-                </h3>
-                <p className="text-xs text-on-surface-variant">
-                  Enrolling for: <strong className="text-primary font-bold">{selectedBoard.name}</strong> •{' '}
-                  <span className="capitalize">{selectedLang} Medium</span>
-                </p>
-              </div>
-
-              {formError && (
-                <div className="p-3 rounded-xl bg-error-container text-on-error-container text-xs flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[18px]">error</span>
-                  <span>{formError}</span>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-on-surface-variant font-label uppercase">
-                    Full Name
-                  </label>
-                  <input
-                    type="text"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Aarav Sharma"
-                    className="w-full bg-surface-container-low border border-outline-variant/60 rounded-xl px-4 py-3 text-xs text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-on-surface-variant font-label uppercase">
-                      10-Digit Mobile Number
-                    </label>
-                    <div className="relative">
-                      <span className="absolute left-3.5 top-3 text-xs text-on-surface-variant font-mono">
-                        +91
-                      </span>
-                      <input
-                        type="tel"
-                        value={mobile}
-                        onChange={(e) => setMobile(e.target.value)}
-                        placeholder="98765 43210"
-                        className="w-full bg-surface-container-low border border-outline-variant/60 rounded-xl pl-12 pr-4 py-3 text-xs text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-on-surface-variant font-label uppercase">
-                      Account Password
-                    </label>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Enter a secure password"
-                      className="w-full bg-surface-container-low border border-outline-variant/60 rounded-xl px-4 py-3 text-xs text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-4 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => setOnboardStep(2)}
-                  className="px-4 py-2 rounded-xl bg-surface-container text-xs font-bold text-on-surface hover:bg-surface-container-high"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-6 py-3 rounded-xl bg-primary text-on-primary text-xs font-bold uppercase tracking-wider shadow-md hover:bg-primary/90 flex items-center gap-1.5"
-                >
-                  {isSubmitting ? (
-                    <span>Registering Scholar...</span>
-                  ) : (
-                    <>
-                      <span>Launch StatXam Cockpit</span>
-                      <span className="material-symbols-outlined text-[16px]">rocket_launch</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {/* Sign In to Existing Account Bar */}
-          <div className="pt-4 border-t border-outline-variant/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[18px]">account_circle</span>
-              <span className="text-on-surface-variant">
-                Already registered with StatXam?
-              </span>
-            </div>
-            <Link
-              href="/auth/login"
-              className="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-label font-bold transition-colors shrink-0 shadow-xs text-center"
-            >
-              Sign In to Existing Account &rarr;
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // 3. Authenticated State: Pan-India Student Cockpit Dashboard
+  // 2. Authenticated State: Pan-India Student Cockpit Dashboard
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-6 space-y-6">
       {/* Greeting Banner & Personal Badges */}

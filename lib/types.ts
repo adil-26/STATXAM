@@ -5,7 +5,15 @@ export type QuestionSource =
 
 export type ReviewStatus = 'pending' | 'accepted' | 'rejected';
 
-export type LanguageMedium = 'punjabi' | 'english' | 'hindi';
+export type LanguageMedium =
+  | 'punjabi'
+  | 'english'
+  | 'hindi'
+  | 'tamil'
+  | 'bengali'
+  | 'telugu'
+  | 'marathi'
+  | 'gujarati';
 
 export interface QuestionOption {
   id: string; // 'A', 'B', 'C', 'D'

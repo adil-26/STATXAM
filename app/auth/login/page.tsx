@@ -349,6 +349,22 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Onboarding Register Banner */}
+        <div className="rounded-2xl bg-surface-container-low border border-outline-variant/60 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs">
+          <div className="space-y-0.5 text-center sm:text-left">
+            <h3 className="font-headline text-xs font-bold text-on-surface">New to StatXam?</h3>
+            <p className="text-[11px] text-on-surface-variant font-body">
+              Begin your 20-Year Board Masterclass with personalized state papers &amp; AI tutor.
+            </p>
+          </div>
+          <Link
+            href="/auth/signup"
+            className="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-label font-bold transition-transform active:scale-95 shrink-0 shadow-xs text-center"
+          >
+            Create Account &rarr;
+          </Link>
+        </div>
+
         {/* Security & Sync Trust Card */}
         <div className="rounded-xl bg-surface-container border border-outline-variant/60 p-3.5 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-surface-container-lowest flex items-center justify-center shrink-0 text-primary border border-outline-variant/40">
