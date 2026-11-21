@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { triggerHaptic } from '@/lib/native-permissions';
 
 interface PdfViewerModalProps {
@@ -22,12 +22,26 @@ export const PdfViewerModal: React.FC<PdfViewerModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'paper' | 'rubric'>('paper');
 
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: true } }));
+    } else {
+      document.body.classList.remove('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const currentUrl = activeTab === 'paper' ? driveUrl : rubricUrl;
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#3a302a]/70 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 animate-fade-in text-on-surface">
+    <div className="fixed inset-0 z-[100] bg-[#3a302a]/70 backdrop-blur-md flex items-center justify-center p-2 sm:p-4 md:p-6 animate-fade-in text-on-surface">
       <div className="w-full max-w-5xl h-[92vh] bg-surface-container-lowest rounded-2xl sm:rounded-3xl border border-outline-variant/80 shadow-2xl flex flex-col justify-between overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-outline-variant/60 bg-surface-container-low shrink-0">

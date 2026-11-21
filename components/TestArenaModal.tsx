@@ -34,6 +34,20 @@ export const TestArenaModal: React.FC<TestArenaModalProps> = ({
   const [scorecard, setScorecard] = useState<GradedScorecard | null>(null);
   const [showSolutions, setShowSolutions] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: true } }));
+    } else {
+      document.body.classList.remove('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
+    };
+  }, [isOpen]);
+
   // Fetch latest questions from backend service
   useEffect(() => {
     if (!isOpen) return;
@@ -106,7 +120,7 @@ export const TestArenaModal: React.FC<TestArenaModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#3a302a]/60 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in text-on-surface">
+    <div className="fixed inset-0 z-[100] bg-[#3a302a]/70 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-fade-in text-on-surface">
       <div className="w-full max-w-4xl max-h-[92vh] bg-surface-container-lowest rounded-2xl sm:rounded-3xl border border-outline-variant/80 shadow-2xl flex flex-col justify-between overflow-hidden">
         {/* Scorecard Results View */}
         {scorecard ? (

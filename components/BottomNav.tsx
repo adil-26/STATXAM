@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { triggerHaptic } from '@/lib/native-permissions';
@@ -9,9 +9,18 @@ import { useExamMode } from './ExamModeContext';
 export default function BottomNav() {
   const pathname = usePathname();
   const { mode } = useExamMode();
+  const [modalOpen, setModalOpen] = useState(false);
 
-  // Hide on admin routes, auth screens, or active test arena
-  if (pathname.startsWith('/admin') || pathname.startsWith('/auth')) {
+  useEffect(() => {
+    const handleModalState = (e: any) => {
+      setModalOpen(Boolean(e?.detail?.open));
+    };
+    window.addEventListener('statxam_modal_state', handleModalState);
+    return () => window.removeEventListener('statxam_modal_state', handleModalState);
+  }, []);
+
+  // Hide on admin routes, auth screens, or when any modal/challenge/test is active
+  if (modalOpen || pathname.startsWith('/admin') || pathname.startsWith('/auth')) {
     return null;
   }
 
@@ -28,8 +37,8 @@ export default function BottomNav() {
   ];
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 pointer-events-none md:hidden flex justify-center pb-[max(env(safe-area-inset-bottom,0px),8px)]">
-      <div className="w-[calc(100%-2rem)] max-w-md pointer-events-auto bg-[#faf5ee]/90 backdrop-blur-xl border border-[#e8dccb] rounded-[28px] shadow-[0_8px_30px_rgba(43,33,24,0.1)] px-2 py-1.5 flex items-center justify-around transition-all">
+    <nav className="fixed inset-x-0 bottom-0 z-30 pointer-events-none md:hidden flex justify-center pb-[max(env(safe-area-inset-bottom,0px),8px)] animate-in fade-in duration-150">
+      <div className="w-[calc(100%-2rem)] max-w-md pointer-events-auto bg-[#faf5ee]/95 backdrop-blur-xl border border-[#e8dccb] rounded-[28px] shadow-[0_8px_30px_rgba(43,33,24,0.1)] px-2 py-1.5 flex items-center justify-around transition-all">
         {tabs.map((tab) => {
           const isActive =
             tab.href === '/' ? pathname === '/' : pathname.startsWith(tab.href);

@@ -60,6 +60,20 @@ export default function AllIndiaPracticeCatalogPage() {
     rubricUrl?: string;
   } | null>(null);
 
+  useEffect(() => {
+    if (showFilterModal) {
+      document.body.classList.add('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: true } }));
+    } else {
+      document.body.classList.remove('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
+    };
+  }, [showFilterModal]);
+
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -384,7 +398,7 @@ export default function AllIndiaPracticeCatalogPage() {
 
       {/* FILTER BOTTOM SHEET / MODAL */}
       {showFilterModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="w-full sm:max-w-xl max-h-[88vh] bg-surface rounded-t-3xl sm:rounded-2xl border border-outline-variant/60 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
             {/* Top Drag Handle on Mobile */}
             <div className="sm:hidden w-10 h-1 bg-outline-variant/60 rounded-full mx-auto mt-2 mb-1 shrink-0" />

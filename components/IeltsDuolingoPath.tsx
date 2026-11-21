@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { triggerHaptic } from '@/lib/native-permissions';
 import { useAuth } from '@/lib/auth-context';
 
@@ -171,6 +171,21 @@ export function IeltsDuolingoPath() {
   const [streakDays] = useState(7);
   const [userCoins, setUserCoins] = useState(user?.coins ?? 250);
 
+  // Broadcast modal state so BottomNav hides automatically when a challenge is active
+  useEffect(() => {
+    if (activeChallenge) {
+      document.body.classList.add('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: true } }));
+    } else {
+      document.body.classList.remove('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
+    };
+  }, [activeChallenge]);
+
   const handleOpenLesson = (lesson: any) => {
     if (lesson.status === 'locked') {
       triggerHaptic('error');
@@ -331,10 +346,10 @@ export function IeltsDuolingoPath() {
 
       {/* Interactive Challenge Modal (Duolingo Style) */}
       {activeChallenge && (
-        <div className="fixed inset-0 z-9999 bg-[#2b2118]/60 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-[#ffffff] rounded-t-[32px] sm:rounded-[32px] border border-[#e8dccb] p-6 shadow-2xl space-y-5 animate-in slide-in-from-bottom-8 duration-250 max-h-[90vh] overflow-y-auto">
-            {/* Modal Top Bar */}
-            <div className="flex items-center justify-between pb-2 border-b border-[#e8dccb]/60">
+        <div className="fixed inset-0 z-[100] bg-[#2b2118]/70 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-[#ffffff] rounded-t-[32px] sm:rounded-[32px] border border-[#e8dccb] shadow-2xl flex flex-col max-h-[92vh] sm:max-h-[85vh] animate-in slide-in-from-bottom-8 duration-250 overflow-hidden">
+            {/* Modal Top Bar (Fixed) */}
+            <div className="px-5 py-4 sm:px-6 sm:py-5 flex items-center justify-between border-b border-[#e8dccb]/60 shrink-0 bg-[#ffffff]">
               <div className="flex items-center gap-2">
                 <span className="material-symbols-outlined text-[#c2652a] text-[20px]">
                   school
@@ -343,130 +358,143 @@ export function IeltsDuolingoPath() {
                   IELTS Challenge
                 </span>
               </div>
-              <button onClick={handleCloseModal} className="text-[#6e5a49] hover:text-[#2b2118]">
-                <span className="material-symbols-outlined text-[20px]">close</span>
+              <button
+                onClick={handleCloseModal}
+                className="w-8 h-8 rounded-full bg-[#f3ebe0] hover:bg-[#e8dccb] flex items-center justify-center text-[#6e5a49] hover:text-[#2b2118] transition-colors"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
               </button>
             </div>
 
-            {/* Reading Passage Snippet (if present) */}
-            {activeChallenge.passage && (
-              <div className="p-3.5 rounded-2xl bg-[#f8f3ec] border border-[#e8dccb] text-xs text-[#2b2118] leading-relaxed font-body italic">
-                &ldquo;{activeChallenge.passage}&rdquo;
-              </div>
-            )}
+            {/* Scrollable Question Content */}
+            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1 overscroll-contain">
+              {/* Reading Passage Snippet (if present) */}
+              {activeChallenge.passage && (
+                <div className="p-3.5 rounded-2xl bg-[#f8f3ec] border border-[#e8dccb] text-xs text-[#2b2118] leading-relaxed font-body italic">
+                  &ldquo;{activeChallenge.passage}&rdquo;
+                </div>
+              )}
 
-            {/* Question Stem */}
-            <div className="space-y-1">
-              <h4 className="font-headline text-base font-bold text-[#2b2118]">
-                {activeChallenge.question}
-              </h4>
+              {/* Question Stem */}
+              <div className="space-y-1">
+                <h4 className="font-headline text-base font-bold text-[#2b2118]">
+                  {activeChallenge.question}
+                </h4>
+              </div>
+
+              {/* Challenge Type A: Multiple Choice or True / False */}
+              {activeChallenge.options && (
+                <div className="space-y-2.5">
+                  {activeChallenge.options.map((opt: string) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setSelectedOption(opt);
+                      }}
+                      className={`w-full p-3.5 rounded-2xl border text-left text-xs font-headline font-bold transition-all active:scale-98 ${
+                        selectedOption === opt
+                          ? 'bg-[#c2652a]/15 border-[#c2652a] text-[#c2652a] shadow-2xs'
+                          : 'bg-[#f3ebe0]/60 border-[#e8dccb] text-[#2b2118] hover:bg-[#f3ebe0]'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Challenge Type B: Word-Bank Tiles */}
+              {activeChallenge.wordBank && (
+                <div className="space-y-3">
+                  {/* Sentence Assembled Area */}
+                  <div className="min-h-12 p-3 rounded-2xl bg-[#f3ebe0]/80 border-2 border-dashed border-[#c2652a]/40 flex flex-wrap gap-1.5 items-center">
+                    {wordBankSelection.length === 0 ? (
+                      <span className="text-xs text-[#9c8979] italic font-body">
+                        Tap tiles below to assemble your answer...
+                      </span>
+                    ) : (
+                      wordBankSelection.map((w, i) => (
+                        <span
+                          key={i}
+                          onClick={() => handleWordTileTap(w)}
+                          className="px-2.5 py-1 rounded-xl bg-[#c2652a] text-[#faf5ee] text-xs font-headline font-bold shadow-2xs cursor-pointer active:scale-95 transition-transform"
+                        >
+                          {w}
+                        </span>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Available Word Tiles */}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {activeChallenge.wordBank.map((word: string) => {
+                      const isPicked = wordBankSelection.includes(word);
+                      return (
+                        <button
+                          key={word}
+                          type="button"
+                          onClick={() => handleWordTileTap(word)}
+                          disabled={isPicked}
+                          className={`px-3 py-1.5 rounded-xl border text-xs font-headline font-bold transition-all active:scale-95 shadow-2xs ${
+                            isPicked
+                              ? 'bg-[#e8dccb] text-transparent border-transparent cursor-not-allowed opacity-30'
+                              : 'bg-[#ffffff] text-[#2b2118] border-[#e8dccb] hover:border-[#c2652a]'
+                          }`}
+                        >
+                          {word}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Feedback Banner */}
+              {feedback && (
+                <div
+                  className={`p-4 rounded-2xl border text-xs space-y-1 animate-in zoom-in-95 ${
+                    feedback.isCorrect
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                      : 'bg-red-50 border-red-300 text-red-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5 font-headline font-bold">
+                    <span className="material-symbols-outlined text-[18px]">
+                      {feedback.isCorrect ? 'check_circle' : 'cancel'}
+                    </span>
+                    <span>{feedback.isCorrect ? 'Correct! +15 Coins' : 'Incorrect'}</span>
+                  </div>
+                  <p className="leading-relaxed">{feedback.message}</p>
+                </div>
+              )}
             </div>
 
-            {/* Challenge Type A: Multiple Choice or True / False */}
-            {activeChallenge.options && (
-              <div className="space-y-2.5">
-                {activeChallenge.options.map((opt: string) => (
-                  <button
-                    key={opt}
-                    type="button"
-                    onClick={() => {
-                      triggerHaptic('light');
-                      setSelectedOption(opt);
-                    }}
-                    className={`w-full p-3.5 rounded-2xl border text-left text-xs font-headline font-bold transition-all active:scale-98 ${
-                      selectedOption === opt
-                        ? 'bg-[#c2652a]/15 border-[#c2652a] text-[#c2652a] shadow-2xs'
-                        : 'bg-[#f3ebe0]/60 border-[#e8dccb] text-[#2b2118] hover:bg-[#f3ebe0]'
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Challenge Type B: Word-Bank Tiles */}
-            {activeChallenge.wordBank && (
-              <div className="space-y-3">
-                {/* Sentence Assembled Area */}
-                <div className="min-h-12 p-3 rounded-2xl bg-[#f3ebe0]/80 border-2 border-dashed border-[#c2652a]/40 flex flex-wrap gap-1.5 items-center">
-                  {wordBankSelection.length === 0 ? (
-                    <span className="text-xs text-[#9c8979] italic font-body">
-                      Tap tiles below to assemble your answer...
-                    </span>
-                  ) : (
-                    wordBankSelection.map((w, i) => (
-                      <span
-                        key={i}
-                        onClick={() => handleWordTileTap(w)}
-                        className="px-2.5 py-1 rounded-xl bg-[#c2652a] text-[#faf5ee] text-xs font-headline font-bold shadow-2xs cursor-pointer active:scale-95 transition-transform"
-                      >
-                        {w}
-                      </span>
-                    ))
-                  )}
-                </div>
-
-                {/* Available Word Tiles */}
-                <div className="flex flex-wrap gap-2 pt-1">
-                  {activeChallenge.wordBank.map((word: string) => {
-                    const isPicked = wordBankSelection.includes(word);
-                    return (
-                      <button
-                        key={word}
-                        type="button"
-                        onClick={() => handleWordTileTap(word)}
-                        disabled={isPicked}
-                        className={`px-3 py-1.5 rounded-xl border text-xs font-headline font-bold transition-all active:scale-95 shadow-2xs ${
-                          isPicked
-                            ? 'bg-[#e8dccb] text-transparent border-transparent cursor-not-allowed opacity-30'
-                            : 'bg-[#ffffff] text-[#2b2118] border-[#e8dccb] hover:border-[#c2652a]'
-                        }`}
-                      >
-                        {word}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Feedback Banner */}
-            {feedback && (
-              <div
-                className={`p-4 rounded-2xl border text-xs space-y-1 animate-in zoom-in-95 ${
-                  feedback.isCorrect
-                    ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
-                    : 'bg-red-50 border-red-300 text-red-900'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-headline font-bold">
-                  <span className="material-symbols-outlined text-[18px]">
-                    {feedback.isCorrect ? 'check_circle' : 'cancel'}
-                  </span>
-                  <span>{feedback.isCorrect ? 'Correct! +15 Coins' : 'Incorrect'}</span>
-                </div>
-                <p className="leading-relaxed">{feedback.message}</p>
-              </div>
-            )}
-
-            {/* Bottom Modal Actions */}
-            <div className="pt-2">
+            {/* Bottom Modal Actions (Pinned & Safe Area Protected) */}
+            <div className="p-4 sm:p-5 border-t border-[#e8dccb]/60 bg-[#faf5ee] shrink-0 pb-safe">
               {!feedback ? (
                 <button
                   type="button"
                   onClick={handleCheckAnswer}
-                  className="w-full h-12 rounded-2xl bg-[#c2652a] hover:bg-[#a8531e] text-[#faf5ee] font-headline font-bold text-xs uppercase tracking-wider transition-all shadow-md active:scale-98"
+                  disabled={
+                    activeChallenge.type === 'word_bank'
+                      ? wordBankSelection.length === 0
+                      : !selectedOption
+                  }
+                  className="w-full h-12 rounded-2xl bg-[#c2652a] hover:bg-[#a8531e] disabled:opacity-40 disabled:cursor-not-allowed text-[#faf5ee] font-headline font-bold text-xs uppercase tracking-wider transition-all shadow-md active:scale-98 flex items-center justify-center gap-2"
                 >
-                  Check Answer
+                  <span>Check Answer</span>
+                  <span className="material-symbols-outlined text-[17px]">arrow_forward</span>
                 </button>
               ) : (
                 <button
                   type="button"
                   onClick={handleCloseModal}
-                  className="w-full h-12 rounded-2xl bg-[#2b2118] hover:bg-[#1f1712] text-[#faf5ee] font-headline font-bold text-xs uppercase tracking-wider transition-all shadow-md active:scale-98"
+                  className="w-full h-12 rounded-2xl bg-[#2b2118] hover:bg-[#1f1712] text-[#faf5ee] font-headline font-bold text-xs uppercase tracking-wider transition-all shadow-md active:scale-98 flex items-center justify-center gap-2"
                 >
-                  Continue &rarr;
+                  <span>Continue</span>
+                  <span className="material-symbols-outlined text-[17px]">done</span>
                 </button>
               )}
             </div>

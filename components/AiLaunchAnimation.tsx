@@ -171,11 +171,19 @@ export default function AiLaunchAnimation() {
     }, 400);
   };
 
+  useEffect(() => {
+    if (isVisible) {
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: true } }));
+    } else {
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
+    }
+  }, [isVisible]);
+
   if (!isVisible) return null;
 
   return (
     <div
-      className={`fixed inset-0 z-9999 flex flex-col items-center justify-center bg-[#070504] text-[#faf5ee] overflow-hidden select-none transition-all duration-400 ease-out ${
+      className={`fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#070504] text-[#faf5ee] overflow-hidden select-none transition-all duration-400 ease-out ${
         isFadingOut ? 'opacity-0 scale-110 pointer-events-none' : 'opacity-100 scale-100'
       }`}
       style={{ perspective: '1200px' }}

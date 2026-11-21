@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ALL_INDIAN_BOARDS, AllIndiaPaperEntry } from '@/lib/boards-catalog';
 import {
   checkPaperAvailabilityInVault,
@@ -49,6 +49,20 @@ export const ContributePaperModal: React.FC<ContributePaperModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const selectedBoard = ALL_INDIAN_BOARDS.find((b) => b.id === boardId) || ALL_INDIAN_BOARDS[0];
+
+  useEffect(() => {
+    if (isOpen) {
+      document.body.classList.add('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: true } }));
+    } else {
+      document.body.classList.remove('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
+    }
+    return () => {
+      document.body.classList.remove('overflow-hidden');
+      window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -136,7 +150,7 @@ export const ContributePaperModal: React.FC<ContributePaperModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-150">
       <div className="w-full max-w-xl bg-surface-container-lowest border border-outline-variant/80 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header Bar */}
         <div className="p-4 sm:p-5 bg-surface border-b border-outline-variant/60 flex items-center justify-between gap-3 shrink-0">
