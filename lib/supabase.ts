@@ -1,6 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-export const SUPABASE_PROJECT_ID = 'wdrkjctckwvgezaqqzpp';
+export const SUPABASE_PROJECT_ID = 'jhtaafwthjksheemcybv';
 export const DEFAULT_SUPABASE_URL = `https://${SUPABASE_PROJECT_ID}.supabase.co`;
 export const PLACEHOLDER_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.placeholder_statxam_key';
 
