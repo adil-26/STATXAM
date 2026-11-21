@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
-    const { query, language = 'english', board = 'Indian Board / NEET-UG / JEE', apiKey } = body;
+    const { query, language = 'english', board = 'Indian Board / NEET-UG / JEE', apiKey, examMode = 'indian' } = body;
 
     if (!query || typeof query !== 'string' || !query.trim()) {
       return NextResponse.json(
@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
       language,
       board,
       apiKey: effectiveApiKey,
+      examMode: examMode === 'ielts' ? 'ielts' : 'indian',
     });
 
     return NextResponse.json({

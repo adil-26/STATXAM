@@ -288,26 +288,46 @@ export default function ProfilePage() {
             </div>
 
             {/* Telegram 2FA Recovery Bot Card */}
-            <div className="p-3.5 rounded-xl bg-surface-container-lowest border border-outline-variant/60 space-y-2.5">
+            <div className="p-4 rounded-2xl bg-surface-container-lowest border border-outline-variant/60 space-y-3 shadow-2xs">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
-                    <span className="material-symbols-outlined text-[16px]">send</span>
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+                    <span className="material-symbols-outlined text-[18px]">send</span>
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-on-surface font-headline">Telegram Password Reset</h4>
-                    <p className="text-[11px] text-on-surface-variant font-body">Zero email dependence, instant bot OTP</p>
+                    <h4 className="text-xs font-bold text-on-surface font-headline">Telegram Account Link</h4>
+                    <p className="text-[11px] text-on-surface-variant font-body">1-Tap OTP login &amp; fast password reset</p>
                   </div>
                 </div>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold font-label bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>Linked</span>
+                </span>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-outline-variant/40">
-                <span className="text-xs font-mono text-primary font-semibold">{user?.telegramHandle || '@statxambot'}</span>
-                <button
-                  onClick={handleTestOtp}
-                  className="px-3 py-1 rounded-lg bg-primary hover:bg-primary-container text-on-primary font-label text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-xs"
+              <div className="p-2.5 rounded-xl bg-surface-container-low border border-outline-variant/40 flex items-center justify-between">
+                <span className="text-xs font-mono font-semibold text-primary">{user?.telegramHandle || '@statxambot'}</span>
+                <span className="text-[10px] text-on-surface-variant font-mono">ID: tg-{user?.id?.slice(0, 8) || 'verified'}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 pt-1 border-t border-outline-variant/40">
+                <a
+                  href={`https://t.me/statxambot?start=link_${user?.id || 'session'}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => triggerHaptic('medium')}
+                  className="py-2 px-3 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/60 text-on-surface text-xs font-label font-bold flex items-center justify-center gap-1.5 transition-colors"
                 >
-                  Send Test OTP
+                  <span className="material-symbols-outlined text-[15px] text-primary">open_in_new</span>
+                  <span>Open Bot</span>
+                </a>
+                <button
+                  type="button"
+                  onClick={handleTestOtp}
+                  className="py-2 px-3 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-2xs flex items-center justify-center gap-1.5"
+                >
+                  <span className="material-symbols-outlined text-[15px]">sms</span>
+                  <span>Test OTP</span>
                 </button>
               </div>
             </div>

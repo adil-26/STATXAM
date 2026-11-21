@@ -11,8 +11,11 @@ import {
   AllIndiaPaperEntry,
 } from '@/lib/boards-catalog';
 import { SEED_CHAPTERS } from '@/lib/supabase-service';
+import { useExamMode } from '@/components/ExamModeContext';
+import { IeltsDuolingoPath } from '@/components/IeltsDuolingoPath';
 
 export default function AllIndiaPracticeCatalogPage() {
+  const { mode } = useExamMode();
   const [papers, setPapers] = useState<AllIndiaPaperEntry[]>(ALL_INDIA_PAPERS_CATALOG);
   const [selectedRegion, setSelectedRegion] = useState<string>('All');
   const [selectedBoardId, setSelectedBoardId] = useState<string>('all');
@@ -102,6 +105,37 @@ export default function AllIndiaPracticeCatalogPage() {
     setSearchQuery('');
     showToast('Filters cleared');
   };
+
+  // IELTS Mode Practice & Duolingo Engine
+  if (mode === 'ielts') {
+    return (
+      <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 md:py-6 space-y-6 animate-in fade-in duration-200">
+        <section className="flex flex-col space-y-2 pt-1">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase tracking-wider font-semibold font-label text-primary">
+                  IELTS Academic &amp; General Training
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                <span className="text-xs text-on-surface-variant font-mono">
+                  Cambridge Assessment • Band 7.5 – 9.0 Drills
+                </span>
+              </div>
+              <h1 className="font-headline text-2xl sm:text-4xl font-bold tracking-tight text-on-surface leading-tight">
+                Duolingo-Style IELTS Practice Engine
+              </h1>
+              <p className="text-xs sm:text-sm text-on-surface-variant max-w-2xl mt-0.5">
+                Master True/False/Not Given, Listening decoding, and submit essays to Clara AI for official Band 0–9 rubric evaluation.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <IeltsDuolingoPath />
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 md:py-6 space-y-4 sm:space-y-6">

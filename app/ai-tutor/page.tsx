@@ -6,6 +6,7 @@ import katex from 'katex';
 import { triggerHaptic, captureQuestionPhoto } from '@/lib/native-permissions';
 import { solveStudentDoubtWithGroq } from '@/lib/groq-service';
 import { useAuth } from '@/lib/auth-context';
+import { useExamMode } from '@/components/ExamModeContext';
 
 const MAX_FILE_SIZE_MB = 25;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -857,6 +858,7 @@ function AiTutorContent() {
   const searchParams = useSearchParams();
   const initialQ = searchParams?.get('q');
   const { user } = useAuth();
+  const { mode } = useExamMode();
 
   // Mobile Single Tab State: 'chat' or 'tools'
   const [activeTab, setActiveTab] = useState<'chat' | 'tools'>('chat');
@@ -1073,7 +1075,7 @@ Students frequently forget that for an equilateral prism, \\(A = 60^\\circ\\) is
         ? detectQueryLanguage(userText, user?.language || 'english')
         : selectedLanguage;
 
-    const boardName = user?.targetExam || 'NEET-UG & Indian Board Exam';
+    const boardName = mode === 'ielts' ? 'IELTS Academic & General' : (user?.targetExam || 'NEET-UG & Indian Board Exam');
 
     const queryForGroq = attachmentToSend
       ? `${userText} (Document/Image Reference: ${attachmentToSend.name})`
@@ -1089,6 +1091,7 @@ Students frequently forget that for an equilateral prism, \\(A = 60^\\circ\\) is
             query: queryForGroq,
             language: effectiveLang,
             board: boardName,
+            examMode: mode,
           }),
         });
         if (apiRes.ok) {
@@ -1106,6 +1109,7 @@ Students frequently forget that for an equilateral prism, \\(A = 60^\\circ\\) is
           query: queryForGroq,
           language: effectiveLang,
           board: boardName,
+          examMode: mode,
         });
         explanation = groqRes.explanation;
       }
@@ -1266,15 +1270,17 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <h1 className="font-headline text-sm sm:text-2xl font-bold text-on-surface truncate">
-                AI Neural Doubt Solver
+                {mode === 'ielts' ? 'IELTS Band 0–9 Examiner' : 'AI Neural Doubt Solver'}
               </h1>
               <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold font-label bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                Online
+                {mode === 'ielts' ? 'Band 9 Active' : 'Online'}
               </span>
             </div>
             <p className="text-[10px] sm:text-xs text-on-surface-variant truncate font-body">
-              Step solutions • KaTeX Math • Max 25 MB Allowed
+              {mode === 'ielts'
+                ? 'Official Cambridge Rubrics • Writing & Speaking • Max 25 MB Allowed'
+                : 'Step solutions • KaTeX Math • Max 25 MB Allowed'}
             </p>
           </div>
         </div>
@@ -1421,12 +1427,20 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
 
             {/* Quick Prompts Horizontal Scroll */}
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-              {[
-                'Prism formula n = sin((A+dm)/2)/sin(A/2)',
-                'Circle diameter subtends right angle proof',
-                'Concave mirror focal length calculation',
-                'Star triangle Python code',
-              ].map((prompt) => (
+              {(mode === 'ielts'
+                ? [
+                    'Evaluate Task 2 essay: Environmental tax vs incentives',
+                    'True/False/Not Given strategy for academic reading',
+                    'IELTS Speaking Part 2: Describe a memorable journey',
+                    'Band 8.5 academic lexical collocations for education',
+                  ]
+                : [
+                    'Prism formula n = sin((A+dm)/2)/sin(A/2)',
+                    'Circle diameter subtends right angle proof',
+                    'Concave mirror focal length calculation',
+                    'Star triangle Python code',
+                  ]
+              ).map((prompt) => (
                 <button
                   key={prompt}
                   onClick={() => handleSendMessage(prompt)}

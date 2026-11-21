@@ -7,9 +7,12 @@ import { triggerHaptic } from '@/lib/native-permissions';
 import { TestArenaModal } from '@/components/TestArenaModal';
 import { ALL_INDIAN_BOARDS, BoardDefinition } from '@/lib/boards-catalog';
 import { PilotProfile, LanguageMedium } from '@/lib/types';
+import { useExamMode } from '@/components/ExamModeContext';
+import { IeltsDuolingoPath } from '@/components/IeltsDuolingoPath';
 
 export default function HomePage() {
   const { user, loading, signup, loginAsDemo } = useAuth();
+  const { mode } = useExamMode();
   const [activeModalPaper, setActiveModalPaper] = useState<string | null>(null);
 
   // Onboarding Wizard State (for new/unauthenticated users)
@@ -76,6 +79,15 @@ export default function HomePage() {
         <p className="text-xs font-label uppercase tracking-widest text-primary font-bold">
           Calibrating 20-Year Archive Cockpit...
         </p>
+      </div>
+    );
+  }
+
+  // IELTS Mode: Duolingo-style Winding Units & Lessons Path
+  if (mode === 'ielts') {
+    return (
+      <div className="w-full max-w-5xl mx-auto px-3 sm:px-6 py-2 sm:py-6 animate-in fade-in duration-200">
+        <IeltsDuolingoPath />
       </div>
     );
   }

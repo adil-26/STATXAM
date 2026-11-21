@@ -266,14 +266,13 @@ export default function LoginPage() {
 
             {/* Recovery Row */}
             <div className="pt-0.5 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={handleOpenOtpModal}
+              <Link
+                href="/auth/forgot-password"
                 className="inline-flex items-center gap-1.5 text-xs text-primary font-label font-semibold hover:underline"
               >
                 <span className="material-symbols-outlined text-[15px]">send</span>
                 <span>Forgot password? Reset via Telegram OTP instant bot</span>
-              </button>
+              </Link>
             </div>
 
             {/* Submit Button */}

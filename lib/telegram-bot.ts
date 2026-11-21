@@ -116,6 +116,10 @@ export async function createPasswordResetSession(mobile: string): Promise<{
   };
 }
 
+export function getTelegramSession(sessionId: string): OtpSessionRecord | null {
+  return localOtpSessions.get(sessionId) || null;
+}
+
 /**
  * Handle incoming Telegram update (Used by both Webhook & Long-Polling)
  */
@@ -155,6 +159,7 @@ export async function handleTelegramUpdate(update: any): Promise<{
       if (session) {
         session.chatId = chatId;
         session.otpCode = otpCode;
+        session.verified = true;
       } else {
         localOtpSessions.set(param, {
           sessionId: param,
@@ -162,7 +167,7 @@ export async function handleTelegramUpdate(update: any): Promise<{
           otpCode,
           chatId,
           expiresAt: Date.now() + 10 * 60 * 1000,
-          verified: false,
+          verified: true,
         });
       }
 

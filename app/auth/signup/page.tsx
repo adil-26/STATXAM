@@ -1,270 +1,580 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { triggerHaptic } from '@/lib/native-permissions';
-import { ALL_INDIAN_BOARDS } from '@/lib/boards-catalog';
+import { useExamMode } from '@/components/ExamModeContext';
 
 export default function SignupPage() {
   const router = useRouter();
   const { signup, loginAsDemo } = useAuth();
+  const { setMode } = useExamMode();
 
-  const [selectedBoardId, setSelectedBoardId] = useState('cbse');
-  const [selectedMedium, setSelectedMedium] = useState('english');
-  const [includeDiagnostic, setIncludeDiagnostic] = useState(true);
+  // Multi-step state: 1 = Account Details, 2 = Telegram Link Onboarding
+  const [step, setStep] = useState<1 | 2>(1);
+
+  // Form Fields
   const [fullName, setFullName] = useState('');
-  const [mobile, setMobile] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<'indian' | 'ielts'>('indian');
+
+  // Telegram Link Session State
+  const [sessionId, setSessionId] = useState('');
+  const [tgAppLink, setTgAppLink] = useState('');
+  const [tgWebLink, setTgWebLink] = useState('');
+  const [botHandle, setBotHandle] = useState('@statxambot');
+  const [isTgVerified, setIsTgVerified] = useState(false);
+  const [manualOtp, setManualOtp] = useState('');
+  const [showManualOtp, setShowManualOtp] = useState(false);
+
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const selectedBoard = ALL_INDIAN_BOARDS.find((b) => b.id === selectedBoardId) || ALL_INDIAN_BOARDS[0];
-
-  const handleContinue = async (e: React.FormEvent) => {
+  // STEP 1: Continue to Telegram Link Step
+  const handleStep1Submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim() || !mobile.trim()) {
-      setErrorMsg('Please enter your full name and 10-digit mobile number');
+    setErrorMsg(null);
+
+    if (!fullName.trim()) {
+      setErrorMsg('Please enter your full name');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      setErrorMsg('Please enter a valid email address');
+      return;
+    }
+    if (password.length < 6) {
+      setErrorMsg('Password must be at least 6 characters long');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMsg('Passwords do not match. Please verify both fields.');
+      return;
+    }
+
+    triggerHaptic('medium');
+    setIsLoading(true);
+
+    try {
+      // 1. Initialize user profile
+      const res = await signup(
+        {
+          fullName: fullName.trim(),
+          mobile: email.trim(),
+          language: 'english',
+          targetExam: selectedTrack === 'ielts' ? 'IELTS Academic (Band 8.0+)' : 'CBSE & Pan-India Board',
+          targetInstitution: selectedTrack === 'ielts' ? 'Global University Admission' : 'National Merit Rank',
+          telegramLinked: false,
+        },
+        password
+      );
+
+      if (!res.success) {
+        setErrorMsg(res.error || 'Failed to create account');
+        setIsLoading(false);
+        return;
+      }
+
+      // Sync active track
+      setMode(selectedTrack);
+
+      // 2. Create Telegram Link Session
+      const tgRes = await fetch('/api/auth/tg/session/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+      const tgData = await tgRes.json();
+
+      if (tgData.success) {
+        setSessionId(tgData.sessionId);
+        setTgAppLink(tgData.appLink);
+        setTgWebLink(tgData.webLink);
+        setBotHandle(tgData.botHandle || '@statxambot');
+      }
+
+      triggerHaptic('success');
+      setStep(2);
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Network error initializing account setup');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // STEP 2: Polling for Telegram Linking
+  useEffect(() => {
+    if (step !== 2 || !sessionId || isTgVerified) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/auth/tg/session/?sessionId=${sessionId}`);
+        const data = await res.json();
+        if (data.success && data.verified) {
+          setIsTgVerified(true);
+          triggerHaptic('success');
+          clearInterval(interval);
+          setTimeout(() => {
+            router.push('/');
+          }, 1000);
+        }
+      } catch {
+        // continue polling
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [step, sessionId, isTgVerified, router]);
+
+  // Open Telegram App with Web Fallback
+  const handleOpenTelegram = () => {
+    triggerHaptic('medium');
+    const appUrl = tgAppLink || `tg://resolve?domain=statxambot&start=${sessionId}`;
+    const webUrl = tgWebLink || `https://t.me/statxambot?start=${sessionId}`;
+
+    const start = Date.now();
+    window.location.href = appUrl;
+
+    setTimeout(() => {
+      if (Date.now() - start < 1800) {
+        window.open(webUrl, '_blank', 'noopener,noreferrer');
+      }
+    }, 700);
+  };
+
+  // Verify Manual OTP if entered
+  const handleVerifyManualOtp = async () => {
+    if (manualOtp.length !== 6) {
+      setErrorMsg('Please enter the 6-digit code received from @statxambot');
       return;
     }
     triggerHaptic('medium');
     setIsLoading(true);
     setErrorMsg(null);
 
-    const res = await signup(
-      {
-        fullName: fullName.trim(),
-        mobile: mobile.startsWith('+91') ? mobile.trim() : `+91 ${mobile.trim()}`,
-        language: selectedMedium as any,
-        targetExam: `${selectedBoard.name} (${selectedBoard.classes[0]})`,
-        targetInstitution: `${selectedBoard.state} State Merit Top 500`,
-      },
-      password || 'student123'
-    );
-
-    if (res.success) {
-      triggerHaptic('success');
-      setTimeout(() => router.push('/'), 400);
-    } else {
-      triggerHaptic('error');
-      setErrorMsg(res.error || 'Registration failed');
+    try {
+      const res = await fetch('/api/auth/tg/session/', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId,
+          code: manualOtp.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsTgVerified(true);
+        triggerHaptic('success');
+        setTimeout(() => router.push('/'), 700);
+      } else {
+        triggerHaptic('error');
+        setErrorMsg(data.error || 'Invalid verification code');
+      }
+    } catch {
+      setErrorMsg('Failed verifying code. Please try again.');
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleQuickDemo = () => {
+  // Skip Telegram for now
+  const handleSkipTelegram = () => {
     triggerHaptic('light');
+    router.push('/');
+  };
+
+  const handleQuickDemo = (track: 'indian' | 'ielts') => {
+    triggerHaptic('medium');
+    setMode(track);
     loginAsDemo({
-      fullName: 'Aarav Sharma',
-      mobile: '+91 98765 43210',
-      language: 'english',
-      targetExam: `${selectedBoard.name} (${selectedBoard.classes[0]})`,
-      targetInstitution: `${selectedBoard.state} State Merit Rank 120`,
+      fullName: track === 'ielts' ? 'Simran Kaur' : 'Aarav Sharma',
+      mobile: track === 'ielts' ? 'simran.ielts@statxam.com' : 'aarav.sharma@statxam.com',
+      targetExam: track === 'ielts' ? 'IELTS Academic (Band 8.5)' : 'CBSE Class 12 Science',
+      targetInstitution: track === 'ielts' ? 'University of British Columbia' : 'IIT Delhi',
     });
     router.push('/');
   };
 
   return (
-    <div className="w-full max-w-xl mx-auto px-5 py-4 space-y-7 animate-in fade-in duration-200">
-      {/* Progress Header */}
-      <div className="flex flex-col space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs uppercase font-label font-bold tracking-widest text-primary">
-            Pan-India Scholar Setup
-          </span>
-          <span className="text-xs text-on-surface-variant font-label font-bold">
-            28 State Boards Active
-          </span>
-        </div>
-        <div className="w-full bg-surface-container rounded-full h-1.5 overflow-hidden">
-          <div className="bg-primary h-1.5 rounded-full w-full" />
-        </div>
-        <h1 className="font-headline text-3xl font-bold tracking-tight text-on-surface pt-1">
-          Target Board &amp; Language Calibration
-        </h1>
-        <p className="text-xs text-on-surface-variant leading-relaxed">
-          Configure your study medium and examination board to calibrate past 20-year solved papers and official step rubrics.
-        </p>
-      </div>
-
-      {errorMsg && (
-        <div className="p-3 rounded-xl bg-error-container text-on-error-container text-xs flex items-center gap-2">
-          <span className="material-symbols-outlined text-[18px]">error</span>
-          <span>{errorMsg}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleContinue} className="space-y-6">
-        {/* Section 1: Language / Medium Selection */}
-        <div className="space-y-2.5">
-          <label className="text-xs font-label font-bold uppercase tracking-wider text-on-surface-variant flex items-center justify-between">
-            <span>1. Preferred Medium of Study</span>
-            <span className="text-[10px] text-primary lowercase font-normal">
-              Adapts all papers &amp; AI answers
+    <div className="min-h-screen bg-[#faf5ee] flex flex-col justify-center items-center px-4 py-8 select-none">
+      <div className="w-full max-w-md space-y-6">
+        {/* Brand & Progress Bar */}
+        <div className="text-center space-y-2">
+          <Link href="/" className="inline-flex items-center gap-2 group">
+            <div className="w-10 h-10 rounded-2xl bg-[#c2652a]/10 border border-[#c2652a]/20 flex items-center justify-center text-[#c2652a] shadow-xs group-hover:scale-105 transition-transform">
+              <span className="material-symbols-outlined text-[24px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                menu_book
+              </span>
+            </div>
+            <span className="font-headline text-3xl font-black tracking-tight text-[#2b2118]">
+              StatXam
             </span>
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {[
-              { id: 'english', label: 'English', desc: 'Standard' },
-              { id: 'hindi', label: 'Hindi', desc: 'हिंदी माध्यम' },
-              { id: 'punjabi', label: 'Punjabi', desc: 'ਪੰਜਾਬੀ ਮਾਧਿਅਮ' },
-              { id: 'tamil', label: 'Tamil', desc: 'தமிழ் வழி' },
-              { id: 'bengali', label: 'Bengali', desc: 'বাংলা মাধ্যম' },
-              { id: 'telugu', label: 'Telugu', desc: 'తెలుగు' },
-              { id: 'marathi', label: 'Marathi', desc: 'मराठी' },
-              { id: 'gujarati', label: 'Gujarati', desc: 'ગુજરાતી' },
-            ].map((m) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => {
-                  triggerHaptic('light');
-                  setSelectedMedium(m.id);
-                }}
-                className={`py-2 px-3 rounded-xl text-xs font-label font-bold border text-center transition-all ${
-                  selectedMedium === m.id
-                    ? 'bg-primary text-on-primary border-primary shadow-xs'
-                    : 'bg-surface-container-low text-on-surface border-outline-variant/50 hover:bg-surface-container'
+          </Link>
+
+          {/* iOS Segmented Step Tracker */}
+          <div className="pt-2 flex items-center justify-center gap-2">
+            <div className="flex items-center gap-1.5 bg-[#f3ebe0] p-1 rounded-full border border-[#e8dccb]">
+              <span
+                className={`px-3 py-1 rounded-full text-[11px] font-headline font-bold transition-all ${
+                  step === 1 ? 'bg-[#c2652a] text-[#faf5ee] shadow-2xs' : 'text-[#6e5a49]'
                 }`}
               >
-                <p className="text-xs">{m.label}</p>
-                <p className="text-[10px] font-normal opacity-80 truncate">{m.desc}</p>
-              </button>
-            ))}
+                1. Account Details
+              </span>
+              <span
+                className={`px-3 py-1 rounded-full text-[11px] font-headline font-bold transition-all ${
+                  step === 2 ? 'bg-[#c2652a] text-[#faf5ee] shadow-2xs' : 'text-[#6e5a49]'
+                }`}
+              >
+                2. Telegram 2FA
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Section 2: Examination Board Selection */}
-        <div className="space-y-2.5">
-          <label className="text-xs font-label font-bold uppercase tracking-wider text-on-surface-variant flex items-center justify-between">
-            <span>2. Target Examination Board</span>
-            <span className="text-[10px] text-secondary font-mono">
-              2005–2024 Archives Included
-            </span>
-          </label>
-          <div className="relative">
-            <select
-              value={selectedBoardId}
-              onChange={(e) => setSelectedBoardId(e.target.value)}
-              className="w-full bg-surface-container-lowest border border-outline-variant/70 rounded-xl px-4 py-3 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
-            >
-              {ALL_INDIAN_BOARDS.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name} — {b.fullName} ({b.state}) • {b.yearsAvailable}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        {/* STEP 1: Account Creation Form */}
+        {step === 1 && (
+          <div className="bg-[#ffffff] rounded-[28px] border border-[#e8dccb]/80 p-6 sm:p-8 shadow-[0_8px_30px_rgba(43,33,24,0.06)] space-y-6 animate-in fade-in zoom-in-95 duration-200">
+            <div>
+              <h2 className="font-headline text-2xl font-bold text-[#2b2118]">
+                Create Scholar Account
+              </h2>
+              <p className="text-xs text-[#6e5a49] mt-1 font-body">
+                Join thousands of students preparing for Indian Boards &amp; IELTS.
+              </p>
+            </div>
 
-        {/* Section 3: Scholar Details */}
-        <div className="space-y-3 pt-1">
-          <label className="text-xs font-label font-bold uppercase tracking-wider text-on-surface-variant">
-            3. Scholar Registration Details
-          </label>
-
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-on-surface-variant">Full Name</label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. Aarav Sharma"
-              className="w-full bg-surface-container-low border border-outline-variant/60 rounded-xl px-4 py-2.5 text-xs text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-on-surface-variant">Mobile Number</label>
-              <div className="relative">
-                <span className="absolute left-3.5 top-2.5 text-xs text-on-surface-variant font-mono">
-                  +91
+            {errorMsg && (
+              <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px] text-red-600 shrink-0">
+                  error
                 </span>
+                <span>{errorMsg}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleStep1Submit} className="space-y-4">
+              {/* Examination Track Selection */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-headline font-bold text-[#2b2118] uppercase tracking-wider">
+                  Select Study Track
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setSelectedTrack('indian');
+                    }}
+                    className={`p-3 rounded-2xl border text-left transition-all active:scale-95 ${
+                      selectedTrack === 'indian'
+                        ? 'bg-[#c2652a]/10 border-[#c2652a] shadow-2xs'
+                        : 'bg-[#f3ebe0]/60 border-[#e8dccb] hover:bg-[#f3ebe0]'
+                    }`}
+                  >
+                    <div className="text-xl">🇮🇳</div>
+                    <p className="font-headline text-xs font-bold text-[#2b2118] mt-1">
+                      Indian Exams
+                    </p>
+                    <p className="text-[10px] text-[#6e5a49] leading-tight mt-0.5">
+                      Boards, JEE, NEET, CBT
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      triggerHaptic('light');
+                      setSelectedTrack('ielts');
+                    }}
+                    className={`p-3 rounded-2xl border text-left transition-all active:scale-95 ${
+                      selectedTrack === 'ielts'
+                        ? 'bg-[#c2652a]/10 border-[#c2652a] shadow-2xs'
+                        : 'bg-[#f3ebe0]/60 border-[#e8dccb] hover:bg-[#f3ebe0]'
+                    }`}
+                  >
+                    <div className="text-xl">🌍</div>
+                    <p className="font-headline text-xs font-bold text-[#2b2118] mt-1">
+                      IELTS Global
+                    </p>
+                    <p className="text-[10px] text-[#6e5a49] leading-tight mt-0.5">
+                      Duolingo-style Units
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Full Name */}
+              <div className="space-y-1">
+                <label className="text-xs font-headline font-semibold text-[#6e5a49]">
+                  Full Name
+                </label>
                 <input
-                  type="tel"
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
-                  placeholder="98765 43210"
-                  className="w-full bg-surface-container-low border border-outline-variant/60 rounded-xl pl-12 pr-4 py-2.5 text-xs text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="e.g. Aarav Sharma"
+                  className="w-full h-11 px-3.5 rounded-2xl bg-[#f3ebe0]/60 border border-[#e8dccb] text-[#2b2118] placeholder-[#9c8979] text-sm focus:outline-none focus:ring-2 focus:ring-[#c2652a] focus:bg-[#ffffff] transition-all"
                 />
+              </div>
+
+              {/* Email Address */}
+              <div className="space-y-1">
+                <label className="text-xs font-headline font-semibold text-[#6e5a49]">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="scholar@example.com"
+                  className="w-full h-11 px-3.5 rounded-2xl bg-[#f3ebe0]/60 border border-[#e8dccb] text-[#2b2118] placeholder-[#9c8979] text-sm focus:outline-none focus:ring-2 focus:ring-[#c2652a] focus:bg-[#ffffff] transition-all"
+                />
+              </div>
+
+              {/* Password */}
+              <div className="space-y-1">
+                <label className="text-xs font-headline font-semibold text-[#6e5a49]">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="At least 6 characters"
+                    className="w-full h-11 pl-3.5 pr-10 rounded-2xl bg-[#f3ebe0]/60 border border-[#e8dccb] text-[#2b2118] placeholder-[#9c8979] text-sm focus:outline-none focus:ring-2 focus:ring-[#c2652a] focus:bg-[#ffffff] transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-2.5 text-[#6e5a49] hover:text-[#2b2118]"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">
+                      {showPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm Password */}
+              <div className="space-y-1">
+                <label className="text-xs font-headline font-semibold text-[#6e5a49]">
+                  Confirm Password
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? 'text' : 'password'}
+                    required
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    className="w-full h-11 pl-3.5 pr-10 rounded-2xl bg-[#f3ebe0]/60 border border-[#e8dccb] text-[#2b2118] placeholder-[#9c8979] text-sm focus:outline-none focus:ring-2 focus:ring-[#c2652a] focus:bg-[#ffffff] transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-2.5 text-[#6e5a49] hover:text-[#2b2118]"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">
+                      {showConfirmPassword ? 'visibility_off' : 'visibility'}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Primary Submit Button */}
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-12 rounded-2xl bg-[#c2652a] hover:bg-[#a8531e] text-[#faf5ee] font-headline font-bold text-sm tracking-wide transition-all shadow-[0_4px_14px_rgba(194,101,42,0.35)] flex items-center justify-center gap-2 active:scale-98 disabled:opacity-70 mt-2"
+              >
+                {isLoading ? (
+                  <div className="w-5 h-5 border-2 border-[#ffffff] border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <span>Continue to Telegram 2FA</span>
+                    <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            {/* Quick Demo Options */}
+            <div className="pt-2 border-t border-[#e8dccb]/60 space-y-2">
+              <p className="text-[11px] text-center text-[#6e5a49] font-body">
+                Or jump straight in with demo credentials:
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemo('indian')}
+                  className="py-2 px-2.5 rounded-xl bg-[#f3ebe0]/70 hover:bg-[#f3ebe0] text-[#2b2118] text-xs font-headline font-semibold border border-[#e8dccb] transition-all"
+                >
+                  🇮🇳 Indian Demo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleQuickDemo('ielts')}
+                  className="py-2 px-2.5 rounded-xl bg-[#f3ebe0]/70 hover:bg-[#f3ebe0] text-[#2b2118] text-xs font-headline font-semibold border border-[#e8dccb] transition-all"
+                >
+                  🌍 IELTS Demo
+                </button>
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-on-surface-variant">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Secure password"
-                className="w-full bg-surface-container-low border border-outline-variant/60 rounded-xl px-4 py-2.5 text-xs text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Section 4: Diagnostic Benchmark Option */}
-        <div
-          onClick={() => {
-            triggerHaptic('light');
-            setIncludeDiagnostic(!includeDiagnostic);
-          }}
-          className="flex items-center justify-between p-4 bg-surface-container-low rounded-xl border border-outline-variant/50 cursor-pointer hover:bg-surface-container transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-surface-container-high flex items-center justify-center text-primary shrink-0">
-              <span className="material-symbols-outlined text-[18px]">biotech</span>
-            </div>
-            <div>
-              <p className="text-xs font-label font-bold text-on-surface">
-                Enroll in Initial Diagnostic Benchmark
-              </p>
-              <p className="text-[11px] text-on-surface-variant">
-                5-min rapid diagnostic to calibrate your State Merit Rank estimate
+            <div className="text-center pt-1">
+              <p className="text-xs text-[#6e5a49]">
+                Already have an account?{' '}
+                <Link href="/auth/login" className="text-[#c2652a] font-bold hover:underline">
+                  Sign In
+                </Link>
               </p>
             </div>
           </div>
-          <span className="material-symbols-outlined text-primary text-[22px]">
-            {includeDiagnostic ? 'check_box' : 'check_box_outline_blank'}
-          </span>
-        </div>
+        )}
 
-        {/* Launch Button */}
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="w-full py-3.5 bg-primary hover:bg-primary-container text-on-primary font-label font-bold text-xs uppercase tracking-wider rounded-xl shadow-xs active:scale-[0.99] transition-all flex items-center justify-center gap-2"
-        >
-          {isLoading ? (
-            <span>Calibrating Board Syllabus...</span>
-          ) : (
-            <>
-              <span>Initialize StatXam Cockpit</span>
-              <span className="material-symbols-outlined text-[18px]">arrow_forward</span>
-            </>
-          )}
-        </button>
-      </form>
+        {/* STEP 2: Telegram Link Onboarding Screen */}
+        {step === 2 && (
+          <div className="bg-[#ffffff] rounded-[28px] border border-[#e8dccb]/80 p-6 sm:p-8 shadow-[0_8px_30px_rgba(43,33,24,0.06)] space-y-6 animate-in fade-in zoom-in-95 duration-200">
+            {/* Telegram Icon Header */}
+            <div className="flex flex-col items-center text-center space-y-2">
+              <div className="w-16 h-16 rounded-full bg-sky-500/10 border border-sky-500/30 flex items-center justify-center text-sky-500 shadow-sm animate-pulse">
+                <span className="material-symbols-outlined text-[32px]">send</span>
+              </div>
+              <h2 className="font-headline text-2xl font-bold text-[#2b2118]">
+                Connect Telegram for Instant Recovery
+              </h2>
+              <p className="text-xs text-[#6e5a49] max-w-sm leading-relaxed">
+                StatXam uses <span className="font-bold text-[#2b2118]">{botHandle}</span> for instant, free 6-digit OTP password resets and high-yield exam alerts.
+              </p>
+            </div>
 
-      {/* Demo Access Button & Sign In Link */}
-      <div className="pt-2 border-t border-outline-variant/40 space-y-3 text-center">
-        <button
-          type="button"
-          onClick={handleQuickDemo}
-          className="w-full py-2.5 rounded-xl bg-secondary-container hover:bg-secondary-container/80 text-on-secondary-container text-xs font-label font-bold transition-colors flex items-center justify-center gap-1.5"
-        >
-          <span className="material-symbols-outlined text-[16px]">bolt</span>
-          <span>Instant Demo Scholar Access (1-Click)</span>
-        </button>
+            {errorMsg && (
+              <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+                <span className="material-symbols-outlined text-[18px] text-red-600 shrink-0">
+                  error
+                </span>
+                <span>{errorMsg}</span>
+              </div>
+            )}
 
-        <p className="text-xs text-on-surface-variant font-label">
-          Already registered?{' '}
-          <Link href="/auth/login" className="text-primary font-bold hover:underline">
-            Sign In with Mobile
-          </Link>
-        </p>
+            {/* Verification Status Banner */}
+            {isTgVerified ? (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs font-headline font-bold flex items-center justify-center gap-2 animate-in zoom-in-95">
+                <span className="material-symbols-outlined text-[20px] text-emerald-600">
+                  check_circle
+                </span>
+                <span>Telegram Connected Successfully! Entering StatXam...</span>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Primary Action Button */}
+                <button
+                  type="button"
+                  onClick={handleOpenTelegram}
+                  className="w-full h-12 rounded-2xl bg-gradient-to-r from-sky-500 to-sky-600 hover:from-sky-600 hover:to-sky-700 text-white font-headline font-bold text-sm tracking-wide transition-all shadow-[0_4px_14px_rgba(14,165,233,0.35)] flex items-center justify-center gap-2 active:scale-98"
+                >
+                  <span className="material-symbols-outlined text-[20px]">send</span>
+                  <span>Open {botHandle} to Link</span>
+                </button>
+
+                {/* Live Waiting Indicator */}
+                <div className="flex items-center justify-center gap-2 text-xs font-mono text-[#6e5a49] py-1">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+                  <span>Waiting for bot authorization...</span>
+                </div>
+
+                {/* Manual Code Option Toggle */}
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowManualOtp(!showManualOtp)}
+                    className="text-xs font-headline font-semibold text-[#c2652a] hover:underline"
+                  >
+                    {showManualOtp ? 'Hide manual code entry' : 'Prefer to enter 6-digit code manually?'}
+                  </button>
+                </div>
+
+                {showManualOtp && (
+                  <div className="p-3.5 rounded-2xl bg-[#f3ebe0]/70 border border-[#e8dccb] space-y-2.5 animate-in fade-in duration-150">
+                    <label className="text-[11px] font-headline font-bold text-[#6e5a49] uppercase tracking-wider block">
+                      6-Digit Telegram Code
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={manualOtp}
+                        onChange={(e) => setManualOtp(e.target.value.replace(/\D/g, ''))}
+                        placeholder="123456"
+                        className="flex-1 h-10 px-3 rounded-xl bg-[#ffffff] border border-[#e8dccb] text-[#2b2118] text-center font-mono text-base tracking-widest focus:outline-none focus:ring-2 focus:ring-[#c2652a]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleVerifyManualOtp}
+                        disabled={isLoading || manualOtp.length !== 6}
+                        className="px-4 rounded-xl bg-[#c2652a] hover:bg-[#a8531e] text-[#faf5ee] text-xs font-headline font-bold transition-all disabled:opacity-50"
+                      >
+                        Verify
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Helper: Don't have Telegram? + Skip Button */}
+            <div className="pt-2 border-t border-[#e8dccb]/60 space-y-3">
+              <div className="p-3 rounded-2xl bg-[#f8f3ec] border border-[#e8dccb]/70 flex items-start gap-2.5">
+                <span className="material-symbols-outlined text-[18px] text-[#6e5a49] shrink-0 mt-0.5">
+                  info
+                </span>
+                <div className="text-[11px] text-[#6e5a49] leading-tight">
+                  <span className="font-bold text-[#2b2118]">Don&apos;t have Telegram installed?</span>
+                  <div className="mt-1 flex items-center gap-3">
+                    <a
+                      href="https://play.google.com/store/apps/details?id=org.telegram.messenger"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sky-600 font-bold hover:underline flex items-center gap-0.5"
+                    >
+                      <span>Get on Play Store</span>
+                      <span className="material-symbols-outlined text-[13px]">open_in_new</span>
+                    </a>
+                    <span>•</span>
+                    <a
+                      href="https://web.telegram.org"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sky-600 font-bold hover:underline"
+                    >
+                      Telegram Web
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Skip for now CTA */}
+              <button
+                type="button"
+                onClick={handleSkipTelegram}
+                className="w-full py-2.5 text-xs font-headline font-semibold text-[#6e5a49] hover:text-[#2b2118] transition-colors"
+              >
+                Skip for now &amp; proceed to Dashboard &rarr;
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
