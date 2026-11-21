@@ -39,7 +39,7 @@
   }
 
   .pt-safe {
-    padding-top: max(env(safe-area-inset-top, 0px), 12px);
+    padding-top: env(safe-area-inset-top, 0px);
   }
 
   /* Robust Material Symbols Outlined definition to prevent ligature text bleed */

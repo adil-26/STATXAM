@@ -46,7 +46,7 @@ export default function RootLayout({
           <ExamModeProvider>
             <StatXamSplash />
             <AppHeader />
-            <main className="flex-1 w-full pt-16 md:pt-20 pb-28 md:pb-12 bg-surface relative min-h-screen">
+            <main className="flex-1 w-full pt-[calc(3.5rem+env(safe-area-inset-top,0px)+0.75rem)] sm:pt-[calc(4rem+env(safe-area-inset-top,0px)+1rem)] pb-28 md:pb-12 bg-surface relative min-h-screen">
               {children}
             </main>
             <BottomNav />
