@@ -11,6 +11,14 @@ import {
   POPULAR_GROQ_MODELS,
   DEFAULT_GROQ_API_KEY,
 } from '@/lib/groq-service';
+import {
+  getActiveSupabaseUrl,
+  setActiveSupabaseUrl,
+  getActiveSupabaseAnonKey,
+  setActiveSupabaseAnonKey,
+  testSupabaseConnection,
+  SUPABASE_PROJECT_ID,
+} from '@/lib/supabase';
 
 export default function AdminSettingsPage() {
   const [groqKey, setGroqKey] = useState('');
@@ -18,6 +26,18 @@ export default function AdminSettingsPage() {
   const [selectedModel, setSelectedModel] = useState('openai/gpt-oss-120b');
   const [telegramHandle, setTelegramHandle] = useState('@StatXamAuthBot');
   const [otpExpiryMinutes, setOtpExpiryMinutes] = useState(5);
+
+  // Supabase state
+  const [supabaseUrl, setSupabaseUrl] = useState('');
+  const [supabaseAnonKey, setSupabaseAnonKey] = useState('');
+  const [showSupabaseKey, setShowSupabaseKey] = useState(false);
+  const [testingSupabase, setTestingSupabase] = useState(false);
+  const [supabaseTestResult, setSupabaseTestResult] = useState<{
+    success: boolean;
+    latencyMs: number;
+    statusCode: number;
+    error?: string;
+  } | null>(null);
 
   // Test state
   const [testingKey, setTestingKey] = useState(false);
@@ -33,6 +53,8 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     setGroqKey(getActiveGroqApiKey());
     setSelectedModel(getActiveGroqModel());
+    setSupabaseUrl(getActiveSupabaseUrl());
+    setSupabaseAnonKey(getActiveSupabaseAnonKey());
   }, []);
 
   const handleTestGroqKey = async () => {
@@ -45,12 +67,24 @@ export default function AdminSettingsPage() {
     setTestingKey(false);
   };
 
+  const handleTestSupabase = async () => {
+    triggerHaptic('medium');
+    setTestingSupabase(true);
+    setSupabaseTestResult(null);
+
+    const res = await testSupabaseConnection(supabaseUrl, supabaseAnonKey);
+    setSupabaseTestResult(res);
+    setTestingSupabase(false);
+  };
+
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
     triggerHaptic('medium');
 
     setActiveGroqApiKey(groqKey);
     setActiveGroqModel(selectedModel);
+    setActiveSupabaseUrl(supabaseUrl);
+    setActiveSupabaseAnonKey(supabaseAnonKey);
 
     setSavedToast(true);
     setTimeout(() => setSavedToast(false), 3000);
@@ -232,6 +266,131 @@ export default function AdminSettingsPage() {
                     <p className="text-[11px] text-[#cec6be] mt-1 line-clamp-1">{m.label}</p>
                   </button>
                 ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Supabase Cloud Database & Auth Engine Card */}
+          <div className="bg-[#241e1b] rounded-2xl border border-[#3e342e] p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-[#342b26]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+                  <span className="material-symbols-outlined text-[18px]">database</span>
+                </div>
+                <div>
+                  <h2 className="font-headline text-lg font-bold text-[#faf5ee]">
+                    Supabase Cloud Database &amp; Auth
+                  </h2>
+                  <p className="text-[11px] text-[#a89f97]">
+                    PostgreSQL storage for question papers, user profiles, submissions, and Telegram OTP verification.
+                  </p>
+                </div>
+              </div>
+              <a
+                href={`https://supabase.com/dashboard/project/${SUPABASE_PROJECT_ID}/settings/api`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-[#86efac] hover:underline font-mono flex items-center gap-1"
+              >
+                <span>Open Supabase Keys</span>
+                <span className="material-symbols-outlined text-[14px]">open_in_new</span>
+              </a>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#cec6be] font-mono flex items-center justify-between">
+                  <span>Supabase Project URL</span>
+                  <span className="text-[10px] text-[#8a8078]">Project: {SUPABASE_PROJECT_ID}</span>
+                </label>
+                <input
+                  type="text"
+                  value={supabaseUrl}
+                  onChange={(e) => setSupabaseUrl(e.target.value)}
+                  className="w-full bg-[#1c1815] border border-[#483d37] rounded-xl px-3 py-2 text-xs font-mono text-[#faf5ee] focus:outline-none focus:ring-2 focus:ring-[#c2652a]"
+                  placeholder="https://wdrkjctckwvgezaqqzpp.supabase.co"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-[#cec6be] uppercase tracking-wider font-mono flex items-center justify-between">
+                  <span>Supabase Anon Public API Key</span>
+                  <span className="text-[10px] text-[#8a8078] lowercase">
+                    Project Settings &rarr; API &rarr; Project API keys &rarr; anon public
+                  </span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showSupabaseKey ? 'text' : 'password'}
+                    value={supabaseAnonKey}
+                    onChange={(e) => setSupabaseAnonKey(e.target.value)}
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    className="w-full bg-[#1c1815] border border-[#483d37] rounded-xl pl-4 pr-24 py-3 text-xs font-mono text-[#faf5ee] placeholder-[#78706a] focus:outline-none focus:ring-2 focus:ring-[#c2652a]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowSupabaseKey(!showSupabaseKey)}
+                    className="absolute right-3 top-2.5 px-2 py-1 rounded-lg bg-[#2e2622] hover:bg-[#382f2a] text-[#cec6be] text-[11px] font-mono transition-colors"
+                  >
+                    {showSupabaseKey ? 'Hide' : 'Reveal'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Supabase Test Connection Box */}
+              <div className="p-4 rounded-xl bg-[#1c1815] border border-[#3e342e] space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="space-y-0.5">
+                    <h4 className="text-xs font-semibold text-[#faf5ee]">
+                      Supabase Health Ping
+                    </h4>
+                    <p className="text-[11px] text-[#a89f97]">
+                      Verify PostgreSQL REST endpoints and test anon key authentication.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleTestSupabase}
+                    disabled={testingSupabase}
+                    className="px-4 py-2 rounded-xl bg-[#23352a] hover:bg-[#2b4435] border border-emerald-600/40 text-xs font-semibold text-emerald-300 transition-colors shrink-0 flex items-center gap-1.5"
+                  >
+                    {testingSupabase ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+                        <span>Pinging Database...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="material-symbols-outlined text-[16px]">power</span>
+                        <span>Test Supabase Link</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {supabaseTestResult && (
+                  <div
+                    className={`p-3 rounded-lg text-xs font-mono flex items-start gap-2.5 ${
+                      supabaseTestResult.success
+                        ? 'bg-emerald-950/40 border border-emerald-500/40 text-emerald-200'
+                        : 'bg-amber-950/40 border border-amber-500/40 text-amber-200'
+                    }`}
+                  >
+                    <span className="material-symbols-outlined text-[18px] shrink-0">
+                      {supabaseTestResult.success ? 'check_circle' : 'warning'}
+                    </span>
+                    <div className="space-y-1">
+                      <p className="font-bold">
+                        {supabaseTestResult.success
+                          ? `Supabase Connected (HTTP ${supabaseTestResult.statusCode}) • Latency: ${supabaseTestResult.latencyMs}ms`
+                          : `Supabase Status: HTTP ${supabaseTestResult.statusCode}`}
+                      </p>
+                      {supabaseTestResult.error && (
+                        <p className="text-[11px] text-amber-300/90">{supabaseTestResult.error}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

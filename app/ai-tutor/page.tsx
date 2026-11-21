@@ -32,16 +32,16 @@ interface ChatMessage {
 interface ParsedSection {
   id: string;
   type:
-    | 'concept'
-    | 'parameters'
-    | 'formula'
-    | 'steps'
-    | 'final'
-    | 'diagram'
-    | 'code'
-    | 'example'
-    | 'insight'
-    | 'general';
+  | 'concept'
+  | 'parameters'
+  | 'formula'
+  | 'steps'
+  | 'final'
+  | 'diagram'
+  | 'code'
+  | 'example'
+  | 'insight'
+  | 'general';
   title: string;
   content: string;
 }
@@ -1027,10 +1027,10 @@ Students frequently forget that for an equilateral prism, \\(A = 60^\\circ\\) is
         prev.map((m) =>
           m.id === msgId
             ? {
-                ...m,
-                text: pending.text,
-                isStreaming: false,
-              }
+              ...m,
+              text: pending.text,
+              isStreaming: false,
+            }
             : m
         )
       );
@@ -1080,18 +1080,42 @@ Students frequently forget that for an equilateral prism, \\(A = 60^\\circ\\) is
       : userText;
 
     try {
-      const groqRes = await solveStudentDoubtWithGroq({
-        query: queryForGroq,
-        language: effectiveLang,
-        board: boardName,
-      });
+      let explanation = '';
+      try {
+        const apiRes = await fetch('/api/ai/solve/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: queryForGroq,
+            language: effectiveLang,
+            board: boardName,
+          }),
+        });
+        if (apiRes.ok) {
+          const json = await apiRes.json();
+          if (json && json.explanation) {
+            explanation = json.explanation;
+          }
+        }
+      } catch (apiErr) {
+        console.warn('[AITutor] Server route /api/ai/solve failed, falling back to client call:', apiErr);
+      }
+
+      if (!explanation) {
+        const groqRes = await solveStudentDoubtWithGroq({
+          query: queryForGroq,
+          language: effectiveLang,
+          board: boardName,
+        });
+        explanation = groqRes.explanation;
+      }
 
       setIsTyping(false);
       triggerHaptic('medium');
 
       // START TYPEWRITER STREAMING EFFECT
       const botMsgId = `msg-${Date.now() + 1}`;
-      const fullText = groqRes.explanation;
+      const fullText = explanation;
 
       pendingFullResponseRef.current = {
         id: botMsgId,
@@ -1127,10 +1151,10 @@ Students frequently forget that for an equilateral prism, \\(A = 60^\\circ\\) is
           prev.map((m) =>
             m.id === botMsgId
               ? {
-                  ...m,
-                  text: currentSlice,
-                  isStreaming: !isDone,
-                }
+                ...m,
+                text: currentSlice,
+                isStreaming: !isDone,
+              }
               : m
           )
         );
@@ -1150,8 +1174,8 @@ Students frequently forget that for an equilateral prism, \\(A = 60^\\circ\\) is
         effectiveLang === 'punjabi'
           ? `**ਸੰਕਲਪ ਸਾਰ**\n"${userText}" ਲਈ ਪਾਠ-ਪੁਸਤਕ ਦੇ ਨਿਯਮਾਂ ਅਨੁਸਾਰ ਸਟੈਪ-ਬਾਈ-ਸਟੈਪ ਹੱਲ ਕਰੋ।`
           : effectiveLang === 'hindi'
-          ? `**अवधारणा अवलोकन**\n"${userText}" के लिए मानक पाठ्यपुस्तक प्रमेय और चरण-दर-चरण अंकन योजना लागू करें।`
-          : `**Concept Overview**\nAcademic solution for "${userText}". Applied standard ${boardName} step-marking rubrics and formulas.`;
+            ? `**अवधारणा अवलोकन**\n"${userText}" के लिए मानक पाठ्यपुस्तक प्रमेय और चरण-दर-चरण अंकन योजना लागू करें।`
+            : `**Concept Overview**\nAcademic solution for "${userText}". Applied standard ${boardName} step-marking rubrics and formulas.`;
 
       setMessages((prev) => [
         ...prev,
@@ -1264,11 +1288,10 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
                   triggerHaptic('light');
                   setSelectedLanguage(l.id as any);
                 }}
-                className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all ${
-                  selectedLanguage === l.id
+                className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all ${selectedLanguage === l.id
                     ? 'bg-primary text-on-primary shadow-2xs'
                     : 'text-on-surface-variant hover:text-on-surface'
-                }`}
+                  }`}
                 title={`Language: ${l.label}`}
               >
                 {l.label}
@@ -1296,11 +1319,10 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
             triggerHaptic('light');
             setActiveTab('chat');
           }}
-          className={`flex-1 py-1.5 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'chat'
+          className={`flex-1 py-1.5 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${activeTab === 'chat'
               ? 'bg-primary text-on-primary shadow-xs'
               : 'text-on-surface-variant hover:text-on-surface'
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-[16px]">chat</span>
           <span>Doubt Chat</span>
@@ -1312,11 +1334,10 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
             triggerHaptic('light');
             setActiveTab('tools');
           }}
-          className={`flex-1 py-1.5 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${
-            activeTab === 'tools'
+          className={`flex-1 py-1.5 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${activeTab === 'tools'
               ? 'bg-primary text-on-primary shadow-xs'
               : 'text-on-surface-variant hover:text-on-surface'
-          }`}
+            }`}
         >
           <span className="material-symbols-outlined text-[16px]">calculate</span>
           <span>Scanner &amp; Formulas</span>
@@ -1327,9 +1348,8 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
       <div className="flex-1 min-h-0 w-full overflow-hidden lg:grid lg:grid-cols-12 lg:gap-5 lg:items-start">
         {/* COLUMN 1: PURE FOCUSED CHAT TAB */}
         <div
-          className={`${
-            activeTab === 'chat' ? 'flex' : 'hidden lg:flex'
-          } lg:col-span-8 flex-col bg-surface-container-low border border-outline-variant/60 rounded-2xl p-2.5 sm:p-4 shadow-xs h-full lg:h-[720px] overflow-hidden justify-between`}
+          className={`${activeTab === 'chat' ? 'flex' : 'hidden lg:flex'
+            } lg:col-span-8 flex-col bg-surface-container-low border border-outline-variant/60 rounded-2xl p-2.5 sm:p-4 shadow-xs h-full lg:h-[720px] overflow-hidden justify-between`}
         >
           {/* Chat Messages Stream with Auto-Scroll */}
           <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pr-1 pb-1">
@@ -1474,9 +1494,8 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
 
         {/* COLUMN 2: TOOLS TAB */}
         <div
-          className={`${
-            activeTab === 'tools' ? 'block' : 'hidden lg:block'
-          } lg:col-span-4 h-full lg:h-[720px] overflow-y-auto overscroll-contain space-y-3.5 pr-1 pb-2`}
+          className={`${activeTab === 'tools' ? 'block' : 'hidden lg:block'
+            } lg:col-span-4 h-full lg:h-[720px] overflow-y-auto overscroll-contain space-y-3.5 pr-1 pb-2`}
         >
           {/* Neural OCR Document Scanner Card */}
           <div className="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
