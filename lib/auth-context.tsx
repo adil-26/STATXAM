@@ -37,44 +37,74 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     async function fetchMe() {
       try {
-        const stored = typeof window !== 'undefined' ? localStorage.getItem('statxam_pilot_session') : null;
-        if (stored) {
-          const parsed = JSON.parse(stored) as PilotProfile;
-          setUser(parsed);
+        // 1. Check for active Supabase session
+        const { data: sessionData } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+        const currentSbUser = sessionData?.session?.user;
 
-          // Try to sync latest stats from Supabase
+        // 2. Check stored local session
+        const stored = typeof window !== 'undefined' ? localStorage.getItem('statxam_pilot_session') : null;
+        const targetUserId = currentSbUser?.id || (stored ? (JSON.parse(stored) as PilotProfile).id : null);
+
+        if (targetUserId) {
           try {
             const { data } = await supabase
               .from('profiles')
               .select('*')
-              .eq('id', parsed.id)
-              .single();
+              .eq('id', targetUserId)
+              .maybeSingle();
 
             if (data) {
               const liveProfile: PilotProfile = {
                 id: data.id,
                 fullName: data.full_name,
                 mobile: data.mobile,
-                targetExam: data.target_exam,
-                targetInstitution: data.target_institution,
-                estimatedRank: data.estimated_rank,
-                accuracy: Number(data.accuracy),
-                streakDays: data.streak_days,
-                questionsSolved: data.questions_solved,
-                coins: parsed.coins ?? 250,
-                telegramLinked: data.telegram_linked,
-                telegramHandle: data.telegram_handle,
+                language: (data.language as any) || 'english',
+                targetExam: data.target_exam || 'CBSE & Pan-India Board',
+                targetInstitution: data.target_institution || 'National Merit Rank',
+                estimatedRank: data.estimated_rank || 150,
+                accuracy: Number(data.accuracy) || 88.0,
+                streakDays: data.streak_days || 1,
+                questionsSolved: data.questions_solved || 0,
+                coins: (stored ? (JSON.parse(stored) as PilotProfile).coins : null) ?? 250,
+                telegramLinked: Boolean(data.telegram_linked),
+                telegramHandle: data.telegram_handle || '@statxambot',
               };
               setUser(liveProfile);
               localStorage.setItem('statxam_pilot_session', JSON.stringify(liveProfile));
+              return;
             }
           } catch {
             // offline, keep cached parsed
           }
-        } else {
-          // First time install or signed out: Start with NO user so scholar lands on Sign Up / Setup!
-          setUser(null);
+
+          if (stored) {
+            setUser(JSON.parse(stored) as PilotProfile);
+            return;
+          } else if (currentSbUser) {
+            const meta = currentSbUser.user_metadata || {};
+            const fallbackProfile: PilotProfile = {
+              id: currentSbUser.id,
+              fullName: meta.full_name || currentSbUser.email?.split('@')[0] || 'Scholar',
+              mobile: meta.mobile || currentSbUser.email || '',
+              language: meta.language || 'english',
+              targetExam: meta.target_exam || 'CBSE & Pan-India Board',
+              targetInstitution: meta.target_institution || 'National Merit Rank',
+              estimatedRank: 150,
+              accuracy: 88.0,
+              streakDays: 1,
+              questionsSolved: 0,
+              coins: 250,
+              telegramLinked: false,
+              telegramHandle: '@statxambot',
+            };
+            setUser(fallbackProfile);
+            localStorage.setItem('statxam_pilot_session', JSON.stringify(fallbackProfile));
+            return;
+          }
         }
+
+        // First time install or signed out: Start with NO user so scholar lands on Sign Up / Setup!
+        setUser(null);
       } catch (err) {
         console.warn('[AuthGate] Failed reading stored session:', err);
         setUser(null);
@@ -127,6 +157,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setLoading(true);
+
+    // 1. Direct Supabase Auth for email addresses (fastest & 100% native client safe)
+    if (identity.includes('@')) {
+      try {
+        const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+          email: identity.trim().toLowerCase(),
+          password: pass.trim(),
+        });
+
+        if (authErr) {
+          return {
+            success: false,
+            error: authErr.message || 'Incorrect email or password. Please verify your credentials.',
+          };
+        }
+
+        if (authData?.user) {
+          const userId = authData.user.id;
+          let dbProfile: any = null;
+          try {
+            const { data } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', userId)
+              .maybeSingle();
+            dbProfile = data;
+          } catch {
+            // continue with metadata
+          }
+
+          const meta = authData.user.user_metadata || {};
+          const clientUser: PilotProfile = {
+            id: userId,
+            fullName: dbProfile?.full_name || meta.full_name || authData.user.email?.split('@')[0] || 'Scholar',
+            mobile: dbProfile?.mobile || meta.mobile || authData.user.email || identity.trim(),
+            language: dbProfile?.language || meta.language || 'english',
+            targetExam: dbProfile?.target_exam || meta.target_exam || 'CBSE & Pan-India Board',
+            targetInstitution: dbProfile?.target_institution || meta.target_institution || 'National Merit Rank',
+            estimatedRank: dbProfile?.estimated_rank || 150,
+            accuracy: dbProfile ? Number(dbProfile.accuracy) : 88.0,
+            streakDays: dbProfile?.streak_days || 1,
+            questionsSolved: dbProfile?.questions_solved || 0,
+            coins: 250,
+            telegramLinked: Boolean(dbProfile?.telegram_linked),
+            telegramHandle: dbProfile?.telegram_handle || '@statxambot',
+          };
+
+          setUser(clientUser);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('statxam_pilot_session', JSON.stringify(clientUser));
+          }
+          return { success: true };
+        }
+      } catch (err: any) {
+        console.warn('[Auth] Direct Supabase login encountered network issue, trying API route...', err);
+      }
+    }
+
+    // 2. Mobile number login or API fallback via getApiUrl
     try {
       const res = await fetch(getApiUrl('/api/auth/login/'), {
         method: 'POST',
@@ -153,47 +242,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       return { success: true };
     } catch (err: any) {
-      // Offline fallback: check if client can reach supabase directly with Supabase Auth
-      try {
-        if (identity.includes('@')) {
-          const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
-            email: identity.trim().toLowerCase(),
-            password: pass.trim(),
-          });
-          if (!authErr && authData?.user) {
-            const { data: p } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', authData.user.id)
-              .maybeSingle();
-
-            const clientUser: PilotProfile = {
-              id: authData.user.id,
-              fullName: p?.full_name || authData.user.email?.split('@')[0] || 'Scholar',
-              mobile: p?.mobile || authData.user.email || identity,
-              language: p?.language || 'english',
-              targetExam: p?.target_exam || 'CBSE & Pan-India Board',
-              targetInstitution: p?.target_institution || 'National Merit Rank',
-              estimatedRank: p?.estimated_rank || 150,
-              accuracy: p ? Number(p.accuracy) : 85.0,
-              streakDays: p?.streak_days || 1,
-              questionsSolved: p?.questions_solved || 0,
-              coins: 250,
-              telegramLinked: Boolean(p?.telegram_linked),
-              telegramHandle: p?.telegram_handle || '@statxambot',
-            };
-            setUser(clientUser);
-            localStorage.setItem('statxam_pilot_session', JSON.stringify(clientUser));
-            return { success: true };
-          }
-        }
-      } catch {
-        // network offline
-      }
-
       return {
         success: false,
-        error: err?.message || 'Authentication failed. Please check your credentials.',
+        error: err?.message || 'Authentication failed. Please check your network and credentials.',
       };
     } finally {
       setLoading(false);
@@ -209,34 +260,115 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const targetEmail = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : '');
 
-      const res = await fetch(getApiUrl('/api/auth/register/'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: targetEmail,
+      let apiSuccess = false;
+      let registeredUser: PilotProfile | null = null;
+      let apiError = '';
+
+      try {
+        const res = await fetch(getApiUrl('/api/auth/register/'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: targetEmail,
+            password: pass.trim(),
+            fullName: data.fullName,
+            mobile: data.mobile,
+            language: data.language,
+            targetExam: data.targetExam,
+            targetInstitution: data.targetInstitution,
+          }),
+        });
+
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && json.success && json.user) {
+          apiSuccess = true;
+          registeredUser = json.user;
+        } else {
+          apiError = json.error || '';
+        }
+      } catch (e: any) {
+        console.warn('[Signup] API route failed, attempting direct Supabase signup:', e);
+      }
+
+      if (apiSuccess && registeredUser) {
+        setUser(registeredUser);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('statxam_pilot_session', JSON.stringify(registeredUser));
+        }
+        return { success: true };
+      }
+
+      // Direct client fallback to Supabase Auth if API route is unreachable
+      if (targetEmail) {
+        const { data: sbData, error: sbErr } = await supabase.auth.signUp({
+          email: targetEmail.toLowerCase().trim(),
           password: pass.trim(),
-          fullName: data.fullName,
-          mobile: data.mobile,
-          language: data.language,
-          targetExam: data.targetExam,
-          targetInstitution: data.targetInstitution,
-        }),
-      });
+          options: {
+            data: {
+              full_name: data.fullName,
+              mobile: data.mobile,
+              language: data.language,
+              target_exam: data.targetExam,
+              target_institution: data.targetInstitution,
+            },
+          },
+        });
 
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok || !json.success || !json.user) {
-        return {
-          success: false,
-          error: json.error || 'Registration failed. Please check your details.',
+        if (sbErr) {
+          return { success: false, error: sbErr.message || apiError || 'Registration failed.' };
+        }
+
+        const userId = sbData.user?.id || `user-${Date.now()}`;
+        const newProfile: PilotProfile = {
+          id: userId,
+          fullName: data.fullName || targetEmail.split('@')[0],
+          mobile: data.mobile || targetEmail,
+          email: targetEmail,
+          language: data.language || 'english',
+          targetExam: data.targetExam || 'CBSE & Pan-India Board',
+          targetInstitution: data.targetInstitution || 'National Merit Rank',
+          estimatedRank: 150,
+          accuracy: 85.0,
+          streakDays: 1,
+          questionsSolved: 0,
+          coins: 250,
+          telegramLinked: false,
+          telegramHandle: '@statxambot',
         };
+
+        try {
+          await supabase.from('profiles').upsert(
+            {
+              id: userId,
+              full_name: newProfile.fullName,
+              mobile: newProfile.mobile,
+              language: newProfile.language,
+              target_exam: newProfile.targetExam,
+              target_institution: newProfile.targetInstitution,
+              estimated_rank: newProfile.estimatedRank,
+              accuracy: newProfile.accuracy,
+              streak_days: newProfile.streakDays,
+              questions_solved: newProfile.questionsSolved,
+              telegram_linked: false,
+              telegram_handle: '@statxambot',
+            },
+            { onConflict: 'id' }
+          );
+        } catch {
+          // ignore profile upsert error
+        }
+
+        setUser(newProfile);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('statxam_pilot_session', JSON.stringify(newProfile));
+        }
+        return { success: true };
       }
 
-      const clientUser: PilotProfile = json.user;
-      setUser(clientUser);
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('statxam_pilot_session', JSON.stringify(clientUser));
-      }
-      return { success: true };
+      return {
+        success: false,
+        error: apiError || 'Registration failed. Please check your details.',
+      };
     } catch (err: any) {
       return {
         success: false,

@@ -2,9 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import { ExamModeProvider } from '@/components/ExamModeContext';
-import AppHeader from '@/components/AppHeader';
-import BottomNav from '@/components/BottomNav';
-import StatXamSplash from '@/components/StatXamSplash';
+import AppShell from '@/components/AppShell';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -44,12 +42,7 @@ export default function RootLayout({
       <body className="min-h-full bg-surface text-on-surface font-body antialiased flex flex-col selection:bg-primary/20">
         <AuthProvider>
           <ExamModeProvider>
-            <StatXamSplash />
-            <AppHeader />
-            <main className="flex-1 w-full pt-[calc(3.5rem+env(safe-area-inset-top,0px)+0.75rem)] sm:pt-[calc(4rem+env(safe-area-inset-top,0px)+1rem)] pb-28 md:pb-12 bg-surface relative min-h-screen">
-              {children}
-            </main>
-            <BottomNav />
+            <AppShell>{children}</AppShell>
           </ExamModeProvider>
         </AuthProvider>
       </body>

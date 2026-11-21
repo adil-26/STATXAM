@@ -113,6 +113,7 @@ export interface PilotProfile {
   id: string;
   fullName: string;
   mobile: string;
+  email?: string;
   language?: LanguageMedium;
   targetExam: string;
   targetInstitution: string;
