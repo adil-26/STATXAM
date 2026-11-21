@@ -85,3 +85,49 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Cinematic Netflix-Style Launch Animation Keyframes */
+@keyframes netflixRibbonLeft {
+  0% { transform: scaleY(0); opacity: 0; }
+  25% { transform: scaleY(1); opacity: 1; filter: drop-shadow(0 0 15px #f0a878); }
+  75% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(1) scaleX(0.2); opacity: 0; filter: blur(4px); }
+}
+
+@keyframes netflixRibbonDiag {
+  0% { transform: scale(0) rotate(-28deg); opacity: 0; }
+  25% { transform: scale(0) rotate(-28deg); opacity: 0; }
+  45% { transform: scale(1) rotate(-28deg); opacity: 1; filter: drop-shadow(0 0 25px #c2652a); }
+  75% { transform: scale(1) rotate(-28deg); opacity: 1; }
+  100% { transform: scale(1.4) rotate(-28deg); opacity: 0; filter: blur(6px); }
+}
+
+@keyframes netflixRibbonRight {
+  0% { transform: scaleY(0); opacity: 0; }
+  35% { transform: scaleY(0); opacity: 0; }
+  55% { transform: scaleY(1); opacity: 1; filter: drop-shadow(0 0 15px #f0a878); }
+  75% { transform: scaleY(1); opacity: 1; }
+  100% { transform: scaleY(1) scaleX(0.2); opacity: 0; filter: blur(4px); }
+}
+
+@keyframes netflixSpectrumRay {
+  0% { transform: scaleY(0.1) translateZ(0); opacity: 0; }
+  40% { transform: scaleY(1) translateZ(50px); opacity: 0.95; }
+  80% { transform: scaleY(2.2) scaleX(1.8) translateZ(250px); opacity: 1; }
+  100% { transform: scaleY(4) scaleX(4) translateZ(600px); opacity: 0; filter: blur(8px); }
+}
+
+@keyframes anamorphicFlarePulse {
+  0% { transform: scaleX(0); opacity: 0; }
+  35% { transform: scaleX(0.4); opacity: 0.5; }
+  60% { transform: scaleX(1.4); opacity: 0.95; filter: drop-shadow(0 0 25px #f0a878); }
+  85% { transform: scaleX(2.2); opacity: 0.4; }
+  100% { transform: scaleX(3); opacity: 0; }
+}
+
+@keyframes cinematicGlowVignette {
+  0% { opacity: 0; }
+  40% { opacity: 0.85; }
+  85% { opacity: 0.6; }
+  100% { opacity: 0; }
+}
