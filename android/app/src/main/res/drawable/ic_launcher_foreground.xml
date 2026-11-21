@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Upward Summit Peak -->
+    <path
+        android:pathData="M40.4,50.6 L54,28.5 L67.6,50.6"
+        android:strokeColor="#C2652A"
+        android:strokeWidth="5.8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- Left Open Book Page -->
+    <path
+        android:pathData="M54,57.4 L30.2,47.2 L30.2,71 L54,79.5"
+        android:strokeColor="#C2652A"
+        android:strokeWidth="5.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- Right Open Book Page & Center Spine -->
+    <path
+        android:pathData="M54,57.4 L77.8,47.2 L77.8,71 L54,79.5 L54,57.4"
+        android:strokeColor="#C2652A"
+        android:strokeWidth="5.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
