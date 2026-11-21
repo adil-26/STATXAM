@@ -1200,7 +1200,7 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-2 md:py-6 pb-20 md:pb-6">
+    <div className="fixed inset-x-0 top-16 bottom-[calc(4rem+env(safe-area-inset-bottom,0px))] lg:static lg:inset-auto z-20 flex flex-col overflow-hidden bg-surface px-2.5 sm:px-4 lg:px-8 pt-2 pb-1 lg:py-6 lg:max-w-7xl lg:mx-auto">
       {/* Hidden File Inputs for Document & Image Upload */}
       <input
         ref={fileInputRef}
@@ -1226,14 +1226,14 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
       />
 
       {/* Top Header Bar */}
-      <div className="flex items-center justify-between gap-2 mb-3 sm:mb-5">
+      <div className="shrink-0 flex items-center justify-between gap-2 mb-2 sm:mb-4">
         <div className="flex items-center gap-2 min-w-0">
-          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg shrink-0 border border-primary/20 shadow-2xs">
-            <span className="material-symbols-outlined text-[20px] sm:text-[22px]">psychology</span>
+          <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center font-bold text-lg shrink-0 border border-primary/20 shadow-2xs">
+            <span className="material-symbols-outlined text-[19px] sm:text-[22px]">psychology</span>
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
-              <h1 className="font-headline text-base sm:text-2xl font-bold text-on-surface truncate">
+              <h1 className="font-headline text-sm sm:text-2xl font-bold text-on-surface truncate">
                 AI Neural Doubt Solver
               </h1>
               <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold font-label bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
@@ -1241,7 +1241,7 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
                 Online
               </span>
             </div>
-            <p className="text-[11px] sm:text-xs text-on-surface-variant truncate font-body">
+            <p className="text-[10px] sm:text-xs text-on-surface-variant truncate font-body">
               Step solutions • KaTeX Math • Max 25 MB Allowed
             </p>
           </div>
@@ -1264,7 +1264,7 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
                   triggerHaptic('light');
                   setSelectedLanguage(l.id as any);
                 }}
-                className={`px-1.5 sm:px-2 py-1 rounded-lg text-[11px] font-semibold transition-all ${
+                className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all ${
                   selectedLanguage === l.id
                     ? 'bg-primary text-on-primary shadow-2xs'
                     : 'text-on-surface-variant hover:text-on-surface'
@@ -1280,29 +1280,29 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
           <button
             type="button"
             onClick={handleResetChat}
-            className="w-8 h-8 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/60 text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/60 text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors"
             title="Reset conversation"
           >
-            <span className="material-symbols-outlined text-[17px]">restart_alt</span>
+            <span className="material-symbols-outlined text-[16px] sm:text-[17px]">restart_alt</span>
           </button>
         </div>
       </div>
 
       {/* MOBILE SINGLE TAB SWITCHER (< lg screens) */}
-      <div className="flex lg:hidden items-center p-1 bg-surface-container rounded-2xl border border-outline-variant/60 mb-3 shadow-2xs">
+      <div className="shrink-0 flex lg:hidden items-center p-1 bg-surface-container rounded-2xl border border-outline-variant/60 mb-2 shadow-2xs">
         <button
           type="button"
           onClick={() => {
             triggerHaptic('light');
             setActiveTab('chat');
           }}
-          className={`flex-1 py-2 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${
+          className={`flex-1 py-1.5 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${
             activeTab === 'chat'
               ? 'bg-primary text-on-primary shadow-xs'
               : 'text-on-surface-variant hover:text-on-surface'
           }`}
         >
-          <span className="material-symbols-outlined text-[17px]">chat</span>
+          <span className="material-symbols-outlined text-[16px]">chat</span>
           <span>Doubt Chat</span>
         </button>
 
@@ -1312,27 +1312,27 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
             triggerHaptic('light');
             setActiveTab('tools');
           }}
-          className={`flex-1 py-2 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${
+          className={`flex-1 py-1.5 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${
             activeTab === 'tools'
               ? 'bg-primary text-on-primary shadow-xs'
               : 'text-on-surface-variant hover:text-on-surface'
           }`}
         >
-          <span className="material-symbols-outlined text-[17px]">calculate</span>
+          <span className="material-symbols-outlined text-[16px]">calculate</span>
           <span>Scanner &amp; Formulas</span>
         </button>
       </div>
 
-      {/* Responsive Layout: On Mobile only the active tab is visible; On Desktop both columns sit side-by-side */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* COLUMN 1: PURE FOCUSED CHAT TAB (Always visible on desktop; on mobile shown only when activeTab === 'chat') */}
+      {/* Responsive Content: Fits exact available screen on mobile; Side-by-side on desktop */}
+      <div className="flex-1 min-h-0 w-full overflow-hidden lg:grid lg:grid-cols-12 lg:gap-5 lg:items-start">
+        {/* COLUMN 1: PURE FOCUSED CHAT TAB */}
         <div
           className={`${
             activeTab === 'chat' ? 'flex' : 'hidden lg:flex'
-          } lg:col-span-8 flex-col bg-surface-container-low border border-outline-variant/60 rounded-2xl p-3 sm:p-5 shadow-xs h-[calc(100dvh-175px)] sm:h-[calc(100vh-200px)] lg:h-[720px] justify-between`}
+          } lg:col-span-8 flex-col bg-surface-container-low border border-outline-variant/60 rounded-2xl p-2.5 sm:p-4 shadow-xs h-full lg:h-[720px] overflow-hidden justify-between`}
         >
           {/* Chat Messages Stream with Auto-Scroll */}
-          <div className="flex-1 min-h-0 overflow-y-auto space-y-3.5 pr-1 pb-1">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pr-1 pb-1">
             {messages.map((m) => (
               <ChatMessageBubble
                 key={m.id}
@@ -1353,20 +1353,20 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
           </div>
 
           {/* Sticky Bottom Dock: Previews, Quick Prompts & Input Bar */}
-          <div className="mt-2 pt-2 border-t border-outline-variant/50 flex flex-col gap-2 shrink-0">
+          <div className="mt-1 pt-1.5 border-t border-outline-variant/50 flex flex-col gap-1.5 shrink-0 bg-surface-container-low">
             {/* Attachment Preview Tray */}
             {selectedAttachment && (
-              <div className="p-2 sm:p-2.5 rounded-2xl bg-surface-container border border-primary/30 flex items-center justify-between gap-2.5 shadow-2xs animate-in fade-in duration-150">
+              <div className="p-2 rounded-xl bg-surface-container border border-primary/30 flex items-center justify-between gap-2 shadow-2xs animate-in fade-in duration-150">
                 <div className="flex items-center gap-2 min-w-0">
                   {selectedAttachment.type === 'image' ? (
                     <img
                       src={selectedAttachment.dataUrl}
                       alt="Attachment Preview"
-                      className="w-9 h-9 rounded-lg object-cover border border-outline-variant/60 shrink-0"
+                      className="w-8 h-8 rounded-lg object-cover border border-outline-variant/60 shrink-0"
                     />
                   ) : (
-                    <div className="w-9 h-9 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-[20px]">picture_as_pdf</span>
+                    <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center shrink-0">
+                      <span className="material-symbols-outlined text-[18px]">picture_as_pdf</span>
                     </div>
                   )}
                   <div className="min-w-0">
@@ -1383,10 +1383,10 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
                 <button
                   type="button"
                   onClick={() => setSelectedAttachment(null)}
-                  className="w-7 h-7 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center justify-center transition-colors shrink-0"
+                  className="w-6 h-6 rounded-full bg-surface-container-high hover:bg-surface-container-highest text-on-surface-variant flex items-center justify-center transition-colors shrink-0"
                   title="Remove attachment"
                 >
-                  <span className="material-symbols-outlined text-[15px]">close</span>
+                  <span className="material-symbols-outlined text-[14px]">close</span>
                 </button>
               </div>
             )}
@@ -1402,7 +1402,7 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
                 <button
                   key={prompt}
                   onClick={() => handleSendMessage(prompt)}
-                  className="px-2.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-[11px] font-label text-on-surface-variant border border-outline-variant/50 shrink-0 transition-colors whitespace-nowrap"
+                  className="px-2 py-0.5 rounded-full bg-surface-container hover:bg-surface-container-high text-[10px] sm:text-[11px] font-label text-on-surface-variant border border-outline-variant/50 shrink-0 transition-colors whitespace-nowrap"
                 >
                   {prompt}
                 </button>
@@ -1410,35 +1410,35 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
             </div>
 
             {/* Main Input Dock Bar */}
-            <div className="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant/70 rounded-2xl p-1.5 focus-within:border-primary transition-colors shadow-2xs">
+            <div className="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant/70 rounded-2xl p-1 sm:p-1.5 focus-within:border-primary transition-colors shadow-2xs">
               {/* Camera Snap */}
               <button
                 type="button"
                 onClick={handleCameraSnap}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
                 title="Camera Snap"
               >
-                <span className="material-symbols-outlined text-[18px]">photo_camera</span>
+                <span className="material-symbols-outlined text-[17px]">photo_camera</span>
               </button>
 
               {/* Photo Gallery Picker */}
               <button
                 type="button"
                 onClick={() => imageInputRef.current?.click()}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
                 title="Select Photo (Max 25 MB)"
               >
-                <span className="material-symbols-outlined text-[18px]">image</span>
+                <span className="material-symbols-outlined text-[17px]">image</span>
               </button>
 
               {/* Document / PDF Attachment */}
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
                 title="Attach PDF (Max 25 MB)"
               >
-                <span className="material-symbols-outlined text-[18px]">attach_file</span>
+                <span className="material-symbols-outlined text-[17px]">attach_file</span>
               </button>
 
               <input
@@ -1451,32 +1451,32 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
                     ? `Ask about ${selectedAttachment.name}...`
                     : `Ask Clara or attach question (Max ${MAX_FILE_SIZE_MB} MB)...`
                 }
-                className="flex-1 bg-transparent px-2 py-1.5 text-xs sm:text-sm text-on-surface placeholder:text-outline focus:outline-none font-body min-w-0"
+                className="flex-1 bg-transparent px-2 py-1 text-xs sm:text-sm text-on-surface placeholder:text-outline focus:outline-none font-body min-w-0"
               />
 
               <button
                 type="button"
                 onClick={() => handleSendMessage()}
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary hover:bg-primary-container text-on-primary flex items-center justify-center shadow-2xs active:scale-95 transition-all shrink-0"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-primary hover:bg-primary-container text-on-primary flex items-center justify-center shadow-2xs active:scale-95 transition-all shrink-0"
                 title="Send"
               >
-                <span className="material-symbols-outlined text-[18px]">send</span>
+                <span className="material-symbols-outlined text-[17px]">send</span>
               </button>
             </div>
 
             {/* Allowed Specs Helper */}
-            <div className="flex items-center justify-between px-1 text-[10px] sm:text-[11px] font-mono text-on-surface-variant">
+            <div className="flex items-center justify-between px-1 text-[9px] sm:text-[10px] font-mono text-on-surface-variant">
               <span>Supports PDF, PNG &amp; JPG</span>
               <span className="font-bold text-primary">Max {MAX_FILE_SIZE_MB} MB Allowed</span>
             </div>
           </div>
         </div>
 
-        {/* COLUMN 2: TOOLS TAB (Always visible on desktop; on mobile shown only when activeTab === 'tools') */}
+        {/* COLUMN 2: TOOLS TAB */}
         <div
           className={`${
             activeTab === 'tools' ? 'block' : 'hidden lg:block'
-          } lg:col-span-4 space-y-4 overflow-y-auto lg:max-h-[720px] pr-1`}
+          } lg:col-span-4 h-full lg:h-[720px] overflow-y-auto overscroll-contain space-y-3.5 pr-1 pb-2`}
         >
           {/* Neural OCR Document Scanner Card */}
           <div className="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">

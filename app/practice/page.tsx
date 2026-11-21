@@ -50,6 +50,7 @@ export default function AllIndiaPracticeCatalogPage() {
   // Modals
   const [cbtModalPaper, setCbtModalPaper] = useState<string | null>(null);
   const [showContributeModal, setShowContributeModal] = useState(false);
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const [pdfModalData, setPdfModalData] = useState<{
     title: string;
     driveUrl?: string;
@@ -84,8 +85,26 @@ export default function AllIndiaPracticeCatalogPage() {
     return true;
   });
 
+  const activeFilterCount =
+    (selectedRegion !== 'All' ? 1 : 0) +
+    (selectedBoardId !== 'all' ? 1 : 0) +
+    (selectedClass !== 'all' ? 1 : 0) +
+    (selectedYear !== 'all' ? 1 : 0) +
+    (selectedSubject !== 'all' ? 1 : 0);
+
+  const handleResetFilters = () => {
+    triggerHaptic('light');
+    setSelectedRegion('All');
+    setSelectedBoardId('all');
+    setSelectedClass('all');
+    setSelectedYear('all');
+    setSelectedSubject('all');
+    setSearchQuery('');
+    showToast('Filters cleared');
+  };
+
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-6 space-y-6">
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-2 md:py-6 space-y-4 sm:space-y-6">
       {/* Title & Pan-India Scope Banner */}
       <section className="flex flex-col space-y-2 pt-1">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -99,7 +118,7 @@ export default function AllIndiaPracticeCatalogPage() {
                 28 State Boards & Central Councils
               </span>
             </div>
-            <h1 className="font-headline text-3xl sm:text-4xl font-bold tracking-tight text-on-surface leading-tight">
+            <h1 className="font-headline text-2xl sm:text-4xl font-bold tracking-tight text-on-surface leading-tight">
               Solved Board Papers Directory (2005 – 2024)
             </h1>
             <p className="text-xs sm:text-sm text-on-surface-variant max-w-2xl mt-0.5">
@@ -114,10 +133,10 @@ export default function AllIndiaPracticeCatalogPage() {
                 triggerHaptic('medium');
                 setShowContributeModal(true);
               }}
-              className="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-label font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
+              className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-800 dark:text-amber-300 font-label font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
             >
-              <span className="material-symbols-outlined text-[18px] text-amber-600 dark:text-amber-400">monetization_on</span>
-              <span>Upload Missing Paper (+150 Coins)</span>
+              <span className="material-symbols-outlined text-[17px] sm:text-[18px] text-amber-600 dark:text-amber-400">monetization_on</span>
+              <span>Upload Missing (+150 Coins)</span>
             </button>
 
             {/* View Format Switcher (Tabular vs Grid vs Chapters) */}
@@ -127,152 +146,430 @@ export default function AllIndiaPracticeCatalogPage() {
                   triggerHaptic('light');
                   setViewFormat('tabular');
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-label font-bold flex items-center gap-1.5 transition-all ${viewFormat === 'tabular'
+                className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-label font-bold flex items-center gap-1 transition-all ${viewFormat === 'tabular'
                   ? 'bg-surface-container-lowest text-primary shadow-xs'
                   : 'text-on-surface-variant hover:text-on-surface'
                   }`}
+                title="Tabular Form"
               >
                 <span className="material-symbols-outlined text-[16px]">table_rows</span>
-                <span>Tabular Form</span>
+                <span className="hidden sm:inline">Tabular</span>
               </button>
               <button
                 onClick={() => {
                   triggerHaptic('light');
                   setViewFormat('grid');
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-label font-bold flex items-center gap-1.5 transition-all ${viewFormat === 'grid'
+                className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-label font-bold flex items-center gap-1 transition-all ${viewFormat === 'grid'
                   ? 'bg-surface-container-lowest text-primary shadow-xs'
                   : 'text-on-surface-variant hover:text-on-surface'
                   }`}
+                title="Cards View"
               >
                 <span className="material-symbols-outlined text-[16px]">grid_view</span>
-                <span>Cards View</span>
+                <span className="hidden sm:inline">Cards</span>
               </button>
               <button
                 onClick={() => {
                   triggerHaptic('light');
                   setViewFormat('chapters');
                 }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-label font-bold flex items-center gap-1.5 transition-all ${viewFormat === 'chapters'
+                className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs font-label font-bold flex items-center gap-1 transition-all ${viewFormat === 'chapters'
                   ? 'bg-surface-container-lowest text-primary shadow-xs'
                   : 'text-on-surface-variant hover:text-on-surface'
                   }`}
+                title="Chapter Units"
               >
                 <span className="material-symbols-outlined text-[16px]">menu_book</span>
-                <span>Chapter Units</span>
+                <span className="hidden sm:inline">Chapters</span>
               </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Region Filter Pills Bar */}
-      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 text-xs">
-        <span className="text-[11px] font-semibold text-on-surface-variant font-label uppercase mr-1">
-          Zone:
-        </span>
-        {regions.map((reg) => (
-          <button
-            key={reg}
-            onClick={() => {
-              triggerHaptic('light');
-              setSelectedRegion(reg);
-            }}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors ${selectedRegion === reg
-              ? 'bg-primary text-on-primary shadow-xs font-bold'
-              : 'bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-outline-variant/50'
-              }`}
-          >
-            {reg === 'All' ? 'All-India Boards' : `${reg} Zone`}
-          </button>
-        ))}
-      </div>
-
-      {/* Advanced Filter Matrix Bar */}
-      <div className="p-4 rounded-2xl bg-surface-container-low border border-outline-variant/60 shadow-xs space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-          {/* Search Input */}
-          <div className="sm:col-span-4 relative">
-            <span className="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-[18px]">
-              search
-            </span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search Bihar, Tamil Nadu, Bengal, Punjab, Maths..."
-              className="w-full bg-surface-container-lowest border border-outline-variant/60 rounded-xl pl-9 pr-3 py-2 text-xs text-on-surface placeholder-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
-            />
-          </div>
-
-          {/* Board Dropdown */}
-          <div className="sm:col-span-3">
-            <select
-              value={selectedBoardId}
-              onChange={(e) => setSelectedBoardId(e.target.value)}
-              className="w-full bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-3 py-2 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
-            >
-              <option value="all">All Boards ({ALL_INDIAN_BOARDS.length})</option>
-              {ALL_INDIAN_BOARDS.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name} ({b.state})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Class Dropdown */}
-          <div className="sm:col-span-2">
-            <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              className="w-full bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-3 py-2 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
-            >
-              <option value="all">All Classes</option>
-              <option value="Class 10">Class 10 (Matric)</option>
-              <option value="Class 12">Class 12 (Higher Sec)</option>
-            </select>
-          </div>
-
-          {/* Year Range Dropdown */}
-          <div className="sm:col-span-3">
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full bg-surface-container-lowest border border-outline-variant/60 rounded-xl px-3 py-2 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
-            >
-              <option value="all">All 20 Years (2005 - 2024)</option>
-              <option value="2024">2024 (Latest Annual)</option>
-              <option value="2023">2023</option>
-              <option value="2022">2022</option>
-              <option value="2020">2020</option>
-              <option value="2018">2018</option>
-              <option value="2015">2015 (10-Yr Mark)</option>
-              <option value="2008">2008</option>
-              <option value="2005">2005 (20-Yr Origin)</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Secondary Subject Filter Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1 text-xs">
-          <span className="text-[11px] text-on-surface-variant font-label font-semibold mr-1">
-            Subject:
+      {/* COMPACT APP-LIKE SEARCH & FILTER TOOLBAR */}
+      <div className="flex items-center gap-2">
+        {/* Search Bar with Instant Clear */}
+        <div className="flex-1 relative">
+          <span className="material-symbols-outlined absolute left-3 top-2.5 text-on-surface-variant text-[18px]">
+            search
           </span>
-          {['all', 'mathematics', 'science', 'social', 'english', 'hindi', 'punjabi', 'tamil', 'bengali'].map((sub) => (
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search board, subject, state, year (e.g. CBSE, Maths)..."
+            className="w-full bg-surface-container-lowest border border-outline-variant/60 rounded-xl pl-9 pr-8 py-2.5 text-xs text-on-surface placeholder-on-surface-variant/60 focus:outline-none focus:ring-2 focus:ring-primary/40 font-body shadow-2xs"
+          />
+          {searchQuery && (
             <button
-              key={sub}
-              onClick={() => setSelectedSubject(sub)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold capitalize transition-colors ${selectedSubject === sub
-                ? 'bg-primary-fixed text-on-primary-fixed-variant font-bold'
-                : 'bg-surface-container text-on-surface-variant hover:text-on-surface'
-                }`}
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2.5 top-2.5 text-on-surface-variant hover:text-on-surface p-0.5"
             >
-              {sub === 'all' ? 'All Subjects' : sub}
+              <span className="material-symbols-outlined text-[15px]">close</span>
             </button>
-          ))}
+          )}
         </div>
+
+        {/* DEDICATED FILTER BUTTON WITH ACTIVE COUNT BADGE */}
+        <button
+          type="button"
+          onClick={() => {
+            triggerHaptic('medium');
+            setShowFilterModal(true);
+          }}
+          className={`px-3.5 py-2.5 rounded-xl border font-label font-bold text-xs flex items-center gap-1.5 shrink-0 transition-all shadow-xs ${
+            activeFilterCount > 0
+              ? 'bg-primary text-on-primary border-primary shadow-xs'
+              : 'bg-surface-container hover:bg-surface-container-high border-outline-variant/60 text-on-surface'
+          }`}
+          title="Open Filters Drawer"
+        >
+          <span className="material-symbols-outlined text-[18px]">
+            {activeFilterCount > 0 ? 'filter_alt' : 'tune'}
+          </span>
+          <span>Filters</span>
+          {activeFilterCount > 0 && (
+            <span className="w-5 h-5 rounded-full bg-white text-primary text-[10px] font-mono font-bold flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
+
+      {/* ACTIVE FILTER CHIPS ROW (One-Tap Dismiss or Quick Selectors) */}
+      <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 text-xs">
+        {activeFilterCount > 0 ? (
+          <>
+            <span className="text-[10px] uppercase font-bold text-on-surface-variant shrink-0 font-label">
+              Active:
+            </span>
+            {selectedRegion !== 'All' && (
+              <button
+                type="button"
+                onClick={() => setSelectedRegion('All')}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold shrink-0 hover:bg-primary/20 transition-colors"
+              >
+                <span>Zone: {selectedRegion}</span>
+                <span className="material-symbols-outlined text-[13px]">close</span>
+              </button>
+            )}
+            {selectedBoardId !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setSelectedBoardId('all')}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold shrink-0 hover:bg-primary/20 transition-colors"
+              >
+                <span>Board: {ALL_INDIAN_BOARDS.find((b) => b.id === selectedBoardId)?.code || selectedBoardId}</span>
+                <span className="material-symbols-outlined text-[13px]">close</span>
+              </button>
+            )}
+            {selectedClass !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setSelectedClass('all')}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold shrink-0 hover:bg-primary/20 transition-colors"
+              >
+                <span>{selectedClass}</span>
+                <span className="material-symbols-outlined text-[13px]">close</span>
+              </button>
+            )}
+            {selectedYear !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setSelectedYear('all')}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold shrink-0 hover:bg-primary/20 transition-colors"
+              >
+                <span>Year: {selectedYear}</span>
+                <span className="material-symbols-outlined text-[13px]">close</span>
+              </button>
+            )}
+            {selectedSubject !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setSelectedSubject('all')}
+                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[11px] font-bold shrink-0 hover:bg-primary/20 transition-colors capitalize"
+              >
+                <span>{selectedSubject}</span>
+                <span className="material-symbols-outlined text-[13px]">close</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="text-[11px] font-bold text-on-surface-variant hover:text-primary underline px-1.5 shrink-0"
+            >
+              Clear All
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="text-[10px] uppercase font-bold text-on-surface-variant shrink-0 font-label">
+              Quick:
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelectedClass(selectedClass === 'Class 10' ? 'all' : 'Class 10')}
+              className="px-2.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-high border border-outline-variant/50 text-[11px] font-label font-semibold text-on-surface shrink-0 transition-colors"
+            >
+              Class 10
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedClass(selectedClass === 'Class 12' ? 'all' : 'Class 12')}
+              className="px-2.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-high border border-outline-variant/50 text-[11px] font-label font-semibold text-on-surface shrink-0 transition-colors"
+            >
+              Class 12
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedYear(selectedYear === '2024' ? 'all' : '2024')}
+              className="px-2.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-high border border-outline-variant/50 text-[11px] font-label font-semibold text-on-surface shrink-0 transition-colors"
+            >
+              2024 Annual
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedSubject(selectedSubject === 'mathematics' ? 'all' : 'mathematics')}
+              className="px-2.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-high border border-outline-variant/50 text-[11px] font-label font-semibold text-on-surface shrink-0 transition-colors"
+            >
+              Mathematics
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedSubject(selectedSubject === 'science' ? 'all' : 'science')}
+              className="px-2.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-high border border-outline-variant/50 text-[11px] font-label font-semibold text-on-surface shrink-0 transition-colors"
+            >
+              Science
+            </button>
+          </>
+        )}
+      </div>
+
+      {/* FILTER BOTTOM SHEET / MODAL */}
+      {showFilterModal && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-full sm:max-w-xl max-h-[88vh] bg-surface rounded-t-3xl sm:rounded-2xl border border-outline-variant/60 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+            {/* Top Drag Handle on Mobile */}
+            <div className="sm:hidden w-10 h-1 bg-outline-variant/60 rounded-full mx-auto mt-2 mb-1 shrink-0" />
+
+            {/* Sheet Header */}
+            <div className="p-4 sm:p-5 border-b border-outline-variant/60 flex items-center justify-between shrink-0 bg-surface-container-low">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-[20px]">tune</span>
+                  <h2 className="font-headline text-lg sm:text-xl font-bold text-on-surface">
+                    Filter Solved Papers
+                  </h2>
+                </div>
+                <p className="text-xs text-on-surface-variant font-mono mt-0.5">
+                  {filteredPapers.length} papers match current criteria
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {activeFilterCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="text-xs font-label font-bold text-primary hover:underline px-2 py-1"
+                  >
+                    Reset All
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowFilterModal(false)}
+                  className="w-8 h-8 rounded-full bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface"
+                >
+                  <span className="material-symbols-outlined text-[18px]">close</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Sheet Body (Scrollable) */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-5">
+              {/* Section 1: Geographic Zone */}
+              <div className="space-y-2">
+                <label className="text-xs font-label font-bold uppercase tracking-wider text-on-surface-variant">
+                  1. Zone &amp; Region
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {regions.map((reg) => (
+                    <button
+                      key={reg}
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setSelectedRegion(reg);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                        selectedRegion === reg
+                          ? 'bg-primary text-on-primary font-bold shadow-xs'
+                          : 'bg-surface-container border border-outline-variant/50 text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      {reg === 'All' ? 'All-India Boards' : `${reg} Zone`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 2: Examination Board */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-label font-bold uppercase tracking-wider text-on-surface-variant">
+                    2. Examination Board
+                  </label>
+                  {selectedBoardId !== 'all' && (
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBoardId('all')}
+                      className="text-[11px] text-primary font-semibold hover:underline"
+                    >
+                      Clear Board
+                    </button>
+                  )}
+                </div>
+                <select
+                  value={selectedBoardId}
+                  onChange={(e) => {
+                    triggerHaptic('light');
+                    setSelectedBoardId(e.target.value);
+                  }}
+                  className="w-full bg-surface-container-lowest border border-outline-variant/70 rounded-xl px-3 py-2.5 text-xs text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40 font-body"
+                >
+                  <option value="all">All Boards ({ALL_INDIAN_BOARDS.length})</option>
+                  {ALL_INDIAN_BOARDS.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.state})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Section 3: Class Level */}
+              <div className="space-y-2">
+                <label className="text-xs font-label font-bold uppercase tracking-wider text-on-surface-variant">
+                  3. Class Level
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'all', label: 'All Classes' },
+                    { id: 'Class 10', label: 'Class 10 (Matric)' },
+                    { id: 'Class 12', label: 'Class 12 (Higher Sec)' },
+                  ].map((cls) => (
+                    <button
+                      key={cls.id}
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setSelectedClass(cls.id);
+                      }}
+                      className={`py-2 px-2 rounded-xl text-xs font-semibold text-center transition-all ${
+                        selectedClass === cls.id
+                          ? 'bg-primary text-on-primary font-bold shadow-xs'
+                          : 'bg-surface-container border border-outline-variant/50 text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      {cls.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 4: Examination Year */}
+              <div className="space-y-2">
+                <label className="text-xs font-label font-bold uppercase tracking-wider text-on-surface-variant">
+                  4. Exam Year (2005 - 2024)
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: 'all', label: 'All 20 Years' },
+                    { id: '2024', label: '2024 (Latest)' },
+                    { id: '2023', label: '2023' },
+                    { id: '2022', label: '2022' },
+                    { id: '2020', label: '2020' },
+                    { id: '2018', label: '2018' },
+                    { id: '2015', label: '2015' },
+                    { id: '2008', label: '2008' },
+                    { id: '2005', label: '2005 (Origin)' },
+                  ].map((yr) => (
+                    <button
+                      key={yr.id}
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setSelectedYear(yr.id);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                        selectedYear === yr.id
+                          ? 'bg-primary text-on-primary font-bold shadow-xs'
+                          : 'bg-surface-container border border-outline-variant/50 text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      {yr.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Section 5: Subject */}
+              <div className="space-y-2">
+                <label className="text-xs font-label font-bold uppercase tracking-wider text-on-surface-variant">
+                  5. Academic Subject
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'all',
+                    'mathematics',
+                    'science',
+                    'social',
+                    'english',
+                    'physics',
+                    'chemistry',
+                    'biology',
+                    'hindi',
+                    'punjabi',
+                  ].map((sub) => (
+                    <button
+                      key={sub}
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setSelectedSubject(sub);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold capitalize transition-all ${
+                        selectedSubject === sub
+                          ? 'bg-primary text-on-primary font-bold shadow-xs'
+                          : 'bg-surface-container border border-outline-variant/50 text-on-surface-variant hover:text-on-surface'
+                      }`}
+                    >
+                      {sub === 'all' ? 'All Subjects' : sub}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Sticky Footer Apply Button */}
+            <div className="p-4 border-t border-outline-variant/60 bg-surface-container-low shrink-0 pb-safe">
+              <button
+                type="button"
+                onClick={() => {
+                  triggerHaptic('success');
+                  setShowFilterModal(false);
+                }}
+                className="w-full py-3 rounded-xl bg-primary text-on-primary font-label font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all"
+              >
+                <span className="material-symbols-outlined text-[18px]">check</span>
+                <span>Show {filteredPapers.length} Filtered Papers</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toastMsg && (
         <div className="p-3 rounded-xl bg-primary-fixed text-on-primary-fixed-variant text-xs font-medium border border-primary/20 flex items-center gap-2">
