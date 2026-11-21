@@ -90,7 +90,7 @@ function renderContentWithMathAndMarkdown(text: string): string {
     if (!rawFormula) return match;
     try {
       const mathHtml = katex.renderToString(rawFormula, { displayMode: true, throwOnError: false });
-      return `<div class="katex-display-box my-2.5 p-3 rounded-2xl bg-primary/5 border border-primary/20 overflow-x-auto text-center shadow-2xs">${mathHtml}</div>`;
+      return `<div class="katex-display-box my-2 py-2 px-3 rounded-xl bg-[#faf5ee]/90 border border-[#e8dccb] overflow-x-auto text-center shadow-2xs">${mathHtml}</div>`;
     } catch {
       return match;
     }
@@ -114,7 +114,7 @@ function renderContentWithMathAndMarkdown(text: string): string {
 }
 
 /**
- * Robust markdown section parser for formal ChatGPT-style academic solutions
+ * Robust markdown section parser for formal academic solutions
  */
 function parseResponseIntoSections(text: string): ParsedSection[] {
   let sanitizedText = text;
@@ -277,21 +277,21 @@ function CodeBlockBox({
   }
 
   return (
-    <div className="my-2.5 rounded-2xl overflow-hidden border border-[#3e342e] bg-[#1c1815] text-[#faf5ee] shadow-xs">
-      <div className="flex items-center justify-between px-3.5 py-1.5 bg-[#251f1b] border-b border-[#3e342e] text-xs font-mono">
-        <div className="flex items-center gap-2 text-[#f0a878]">
-          <span className="material-symbols-outlined text-[15px]">terminal</span>
+    <div className="my-2 rounded-xl overflow-hidden border border-[#3e342e] bg-[#1c1815] text-[#faf5ee] shadow-2xs">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-[#251f1b] border-b border-[#3e342e] text-xs font-mono">
+        <div className="flex items-center gap-1.5 text-[#f0a878]">
+          <span className="material-symbols-outlined text-[14px]">terminal</span>
           <span className="font-bold uppercase tracking-wider text-[10px]">{lang}</span>
         </div>
         <button
           type="button"
           onClick={() => onCopy(code, copyId)}
-          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1c1815] hover:bg-[#322923] text-[#cec6be] hover:text-[#faf5ee] text-xs font-mono transition-all border border-[#3e342e]"
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#1c1815] hover:bg-[#322923] text-[#cec6be] hover:text-[#faf5ee] text-[11px] font-mono transition-all border border-[#3e342e]"
         >
           <span className="material-symbols-outlined text-[13px] text-[#f0a878]">
             {copiedKey === copyId ? 'check' : 'content_copy'}
           </span>
-          <span className="font-semibold text-[11px]">{copiedKey === copyId ? 'Copied!' : 'Copy Code'}</span>
+          <span className="font-semibold">{copiedKey === copyId ? 'Copied' : 'Copy'}</span>
         </button>
       </div>
       <pre className="p-3 text-xs sm:text-sm font-mono overflow-x-auto text-[#86efac] leading-relaxed">
@@ -302,7 +302,7 @@ function CodeBlockBox({
 }
 
 /**
- * Visual Educational Section Card with KaTeX Math Function Renderers
+ * Standardized Section Card: Flat, Elegant, and Clean without Nested Clutter
  */
 function SectionCard({
   section,
@@ -335,58 +335,58 @@ function SectionCard({
     );
   }
 
-  // 2. Exam Insight / Common Trap Card (Warning Callout)
+  // 2. Exam Insight / Common Trap Card (Clean Left-Accent Callout)
   if (type === 'insight') {
     return (
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+      <div className="p-3 sm:p-3.5 rounded-2xl bg-[#fff8f0] border-l-4 border-l-[#c2652a] border border-[#f0dfcc] space-y-1.5 shadow-2xs">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
-            <span className="material-symbols-outlined text-[17px]">warning</span>
+          <div className="flex items-center gap-1.5 text-[#c2652a]">
+            <span className="material-symbols-outlined text-[16px]">lightbulb</span>
             <span className="font-headline font-bold text-xs uppercase tracking-wider">
-              {title || 'Exam Insight & Common Trap'}
+              Examiner Tip
             </span>
           </div>
-          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-800 dark:text-amber-300">
-            Examiner Tip
+          <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#c2652a]/10 text-[#c2652a] border border-[#c2652a]/20">
+            Key Insight
           </span>
         </div>
         <div
-          className="text-xs sm:text-sm leading-relaxed text-on-surface"
+          className="text-xs sm:text-sm leading-relaxed text-[#2b2118]"
           dangerouslySetInnerHTML={{ __html: renderContentWithMathAndMarkdown(content) }}
         />
       </div>
     );
   }
 
-  // 3. Formula & Principles Applied Card (LIVE KaTeX Mathematical Function)
+  // 3. Formula & Principles Applied Card
   if (type === 'formula') {
     const formulaMatch = content.match(/\\\[([\s\S]*?)\\\]|\$\$([\s\S]*?)\$\$/);
     const rawFormula = formulaMatch ? (formulaMatch[1] || formulaMatch[2] || '').trim() : content.trim();
     const renderedMath = renderKatex(rawFormula, true);
 
     return (
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-primary/5 border border-primary/25 space-y-2.5 shadow-2xs">
+      <div className="p-3 sm:p-3.5 rounded-2xl bg-[#faf5ee] border border-[#e4d7c6] space-y-2 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-primary">
-            <span className="material-symbols-outlined text-[17px]">functions</span>
+            <span className="material-symbols-outlined text-[16px]">functions</span>
             <span className="font-headline font-bold text-xs uppercase tracking-wider">
-              {title || 'Formula & Mathematical Function'}
+              {title || 'Applied Formula'}
             </span>
           </div>
           <button
             type="button"
             onClick={() => onCopy(rawFormula, `formula-${id}`)}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface border border-primary/30 text-primary text-[11px] font-mono font-semibold hover:bg-primary/10 transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-surface border border-primary/30 text-primary text-[11px] font-mono font-semibold hover:bg-primary/10 transition-colors shadow-2xs"
           >
             <span className="material-symbols-outlined text-[13px]">
               {copiedKey === `formula-${id}` ? 'check' : 'content_copy'}
             </span>
-            <span>{copiedKey === `formula-${id}` ? 'Copied LaTeX!' : 'Copy Formula'}</span>
+            <span>{copiedKey === `formula-${id}` ? 'Copied' : 'Copy'}</span>
           </button>
         </div>
 
         <div
-          className="p-3 sm:p-4 rounded-xl bg-surface border border-outline-variant/60 overflow-x-auto text-center"
+          className="p-2.5 sm:p-3 rounded-xl bg-white/80 border border-[#e4d7c6] overflow-x-auto text-center"
           dangerouslySetInnerHTML={{ __html: renderedMath }}
         />
 
@@ -404,12 +404,12 @@ function SectionCard({
     );
   }
 
-  // 4. Final Answer Card
+  // 4. Final Answer Card: ONE Mint Green Card with Single Copy Button
   if (type === 'final') {
     return (
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 space-y-2.5 shadow-2xs">
+      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#edf7f1] border border-[#b7e1c9] space-y-2 shadow-2xs">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+          <div className="flex items-center gap-1.5 text-emerald-800 dark:text-emerald-300">
             <span className="material-symbols-outlined text-[18px]">verified</span>
             <span className="font-headline font-bold text-xs uppercase tracking-wider">
               {title || 'Final Answer'}
@@ -418,12 +418,13 @@ function SectionCard({
           <button
             type="button"
             onClick={() => onCopy(content.replace(/```/g, ''), `final-${id}`)}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-[11px] font-mono font-semibold hover:bg-emerald-500/10 transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/90 hover:bg-white border border-emerald-500/30 text-emerald-800 text-[11px] font-mono font-semibold transition-colors shadow-2xs"
+            title="Copy Final Answer"
           >
             <span className="material-symbols-outlined text-[13px]">
               {copiedKey === `final-${id}` ? 'check' : 'content_copy'}
             </span>
-            <span>{copiedKey === `final-${id}` ? 'Copied Answer!' : 'Copy Answer'}</span>
+            <span>{copiedKey === `final-${id}` ? 'Copied' : 'Copy'}</span>
           </button>
         </div>
         <div className="text-xs sm:text-sm font-semibold text-on-surface">
@@ -441,19 +442,19 @@ function SectionCard({
   // 5. Diagrammatic / Geometric Construction Card
   if (type === 'diagram') {
     return (
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#1c222b] border border-[#2d3748] text-[#f1f5f9] space-y-2 shadow-2xs">
+      <div className="p-3 sm:p-3.5 rounded-2xl bg-[#1c222b] border border-[#2d3748] text-[#f1f5f9] space-y-2 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-sky-400">
-            <span className="material-symbols-outlined text-[17px]">schema</span>
+            <span className="material-symbols-outlined text-[16px]">schema</span>
             <span className="font-headline font-bold text-xs uppercase tracking-wider">
-              {title || 'Diagram & Geometric Construction'}
+              {title || 'Geometric Construction'}
             </span>
           </div>
           <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/20 text-sky-300">
             Geometry View
           </span>
         </div>
-        <div className="p-3 rounded-xl bg-[#0f172a] border border-[#1e293b] font-mono text-xs sm:text-sm text-sky-200 overflow-x-auto whitespace-pre leading-relaxed">
+        <div className="p-2.5 rounded-xl bg-[#0f172a] border border-[#1e293b] font-mono text-xs text-sky-200 overflow-x-auto whitespace-pre leading-relaxed">
           {content}
         </div>
       </div>
@@ -463,26 +464,26 @@ function SectionCard({
   // 6. Example Input / Output Terminal Card
   if (type === 'example') {
     return (
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-[#181412] border border-[#342b26] text-[#faf5ee] space-y-2">
+      <div className="p-3 sm:p-3.5 rounded-2xl bg-[#181412] border border-[#342b26] text-[#faf5ee] space-y-1.5 shadow-2xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-sky-400">
-            <span className="material-symbols-outlined text-[17px]">input</span>
+            <span className="material-symbols-outlined text-[16px]">input</span>
             <span className="font-headline font-bold text-xs uppercase tracking-wider">
-              {title || 'Example Input / Output'}
+              {title || 'Example I/O'}
             </span>
           </div>
           <button
             type="button"
             onClick={() => onCopy(content.replace(/```/g, ''), `example-${id}`)}
-            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#241e1b] border border-[#3e342e] text-[#cec6be] hover:text-[#faf5ee] text-[11px] font-mono transition-colors"
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#241e1b] border border-[#3e342e] text-[#cec6be] hover:text-[#faf5ee] text-[11px] font-mono transition-colors"
           >
             <span className="material-symbols-outlined text-[13px]">
               {copiedKey === `example-${id}` ? 'check' : 'content_copy'}
             </span>
-            <span>{copiedKey === `example-${id}` ? 'Copied!' : 'Copy I/O'}</span>
+            <span>{copiedKey === `example-${id}` ? 'Copied' : 'Copy'}</span>
           </button>
         </div>
-        <pre className="p-3 rounded-xl bg-[#120f0d] font-mono text-xs text-[#a5f3fc] overflow-x-auto leading-relaxed">
+        <pre className="p-2.5 rounded-xl bg-[#120f0d] font-mono text-xs text-[#a5f3fc] overflow-x-auto leading-relaxed">
           <code>{content.replace(/```/g, '').trim()}</code>
         </pre>
       </div>
@@ -492,9 +493,9 @@ function SectionCard({
   // 7. Given Parameters Card
   if (type === 'parameters') {
     return (
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-blue-500/5 border border-blue-500/20 space-y-2">
+      <div className="space-y-1 py-1">
         <div className="flex items-center gap-1.5 text-blue-700 dark:text-blue-400">
-          <span className="material-symbols-outlined text-[17px]">fact_check</span>
+          <span className="material-symbols-outlined text-[16px]">fact_check</span>
           <span className="font-headline font-bold text-xs uppercase tracking-wider">
             {title || 'Given Parameters'}
           </span>
@@ -511,12 +512,12 @@ function SectionCard({
     );
   }
 
-  // 8. Concept Overview Card
+  // 8. Concept Overview
   if (type === 'concept') {
     return (
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-container-low/70 border border-outline-variant/60 space-y-2">
-        <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-          <span className="material-symbols-outlined text-[17px]">lightbulb</span>
+      <div className="space-y-1 py-1">
+        <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+          <span className="material-symbols-outlined text-[16px]">lightbulb</span>
           <span className="font-headline font-bold text-xs uppercase tracking-wider">
             {title || 'Concept Overview'}
           </span>
@@ -533,12 +534,12 @@ function SectionCard({
     );
   }
 
-  // 9. Step-by-Step Working Card
+  // 9. Step-by-Step Working
   if (type === 'steps') {
     return (
-      <div className="p-3.5 sm:p-4 rounded-2xl bg-surface-container-low/70 border border-outline-variant/60 space-y-2">
-        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-          <span className="material-symbols-outlined text-[17px]">format_list_numbered</span>
+      <div className="space-y-1 py-1">
+        <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+          <span className="material-symbols-outlined text-[16px]">format_list_numbered</span>
           <span className="font-headline font-bold text-xs uppercase tracking-wider">
             {title || 'Step-by-Step Working'}
           </span>
@@ -555,9 +556,9 @@ function SectionCard({
     );
   }
 
-  // 10. General Fallback Card
+  // 10. General Fallback
   return (
-    <div className="space-y-1.5 py-1">
+    <div className="space-y-1 py-1">
       {title && (
         <h4 className="font-headline font-bold text-xs sm:text-sm text-on-surface flex items-center gap-1.5">
           <span className="w-1.5 h-1.5 rounded-full bg-primary" />
@@ -577,18 +578,15 @@ function SectionCard({
 }
 
 /**
- * Formatted Markdown Text Segment with Table & Math Recognition
+ * Formatted Markdown Text Segment with Table & Clean Math Recognition
  */
 function FormattedTextSegment({
   text,
-  segmentIdx,
-  copiedKey,
-  onCopy,
 }: {
   text: string;
-  segmentIdx: number;
-  copiedKey: string | null;
-  onCopy: (t: string, id: string) => void;
+  segmentIdx?: number;
+  copiedKey?: string | null;
+  onCopy?: (t: string, id: string) => void;
 }) {
   const paragraphs = text.split(/\n\n+/);
 
@@ -614,10 +612,10 @@ function FormattedTextSegment({
           return (
             <div
               key={`tbl-${pIdx}`}
-              className="my-2.5 overflow-x-auto rounded-xl border border-outline-variant/60 shadow-2xs"
+              className="my-2 overflow-x-auto rounded-xl border border-outline-variant/60 shadow-2xs"
             >
               <table className="w-full text-left text-xs border-collapse">
-                <thead className="bg-surface-container font-semibold text-on-surface">
+                <thead className="bg-[#f0e6d8] font-semibold text-on-surface">
                   <tr>
                     {headerCols.map((h, i) => (
                       <th
@@ -652,40 +650,19 @@ function FormattedTextSegment({
           );
         }
 
+        // Clean Mathematical Display Block (No Nested Outer Box or Duplicate Copy Button)
         if (
           (trimmed.startsWith('\\[') && trimmed.endsWith('\\]')) ||
           (trimmed.startsWith('$$') && trimmed.endsWith('$$'))
         ) {
           const formulaRaw = trimmed.replace(/^\\\[|^\$\$|\\\]$|\$\$$/g, '').trim();
-          const copyId = `eq-${segmentIdx}-${pIdx}`;
           const renderedMath = renderKatex(formulaRaw, true);
           return (
             <div
               key={`eq-${pIdx}`}
-              className="my-2.5 p-3 sm:p-3.5 rounded-2xl bg-primary/5 border border-primary/20 space-y-2 shadow-2xs"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono uppercase font-bold text-primary flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-[15px]">calculate</span>
-                  <span>Mathematical Expression</span>
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onCopy(formulaRaw, copyId)}
-                  className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-surface border border-primary/30 hover:bg-primary/10 text-primary text-[11px] font-mono font-semibold transition-colors"
-                  title="Copy Formula"
-                >
-                  <span className="material-symbols-outlined text-[13px]">
-                    {copiedKey === copyId ? 'check' : 'content_copy'}
-                  </span>
-                  <span>{copiedKey === copyId ? 'Copied' : 'Copy Formula'}</span>
-                </button>
-              </div>
-              <div
-                className="overflow-x-auto text-center py-1"
-                dangerouslySetInnerHTML={{ __html: renderedMath }}
-              />
-            </div>
+              className="my-2 py-2 px-3 rounded-xl bg-[#faf5ee]/90 border border-[#e8dccb] overflow-x-auto text-center shadow-2xs"
+              dangerouslySetInnerHTML={{ __html: renderedMath }}
+            />
           );
         }
 
@@ -702,7 +679,7 @@ function FormattedTextSegment({
 }
 
 /**
- * Message Bubble with Attached Images & Documents Support
+ * Standardized Message Bubble with Attached Images & Documents Support
  */
 function ChatMessageBubble({
   message,
@@ -760,17 +737,17 @@ function ChatMessageBubble({
     );
   }
 
-  // Assistant Bubble: Structured Card Deck with KaTeX
+  // Assistant Bubble: Flat, Clean Modern AI Response Card
   const sections = parseResponseIntoSections(message.text);
 
   return (
     <div className="flex flex-col items-start w-full">
-      <div className="w-full max-w-[98%] sm:max-w-[92%] rounded-3xl p-3.5 sm:p-5 shadow-sm bg-surface-container-lowest text-on-surface border border-outline-variant/60 rounded-bl-xs space-y-3.5">
+      <div className="w-full rounded-2xl p-3 sm:p-4 bg-white/95 text-on-surface border border-outline-variant/50 shadow-2xs space-y-3">
         {/* Header Bar */}
-        <div className="flex items-center justify-between pb-2.5 border-b border-outline-variant/40">
+        <div className="flex items-center justify-between pb-2 border-b border-outline-variant/30">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-              <span className="material-symbols-outlined text-[17px]">psychology</span>
+            <div className="w-6 h-6 rounded-lg bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+              <span className="material-symbols-outlined text-[15px]">psychology</span>
             </div>
             <div>
               <span className="font-headline font-bold text-xs text-on-surface block leading-tight">
@@ -792,10 +769,10 @@ function ChatMessageBubble({
             <button
               type="button"
               onClick={() => onSkipStreaming(message.id)}
-              className="px-2.5 py-1 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/60 text-xs font-mono font-bold text-primary flex items-center gap-1 transition-all"
+              className="px-2 py-0.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-outline-variant/50 text-[11px] font-mono font-bold text-primary flex items-center gap-1 transition-all"
             >
               <span>Skip</span>
-              <span className="material-symbols-outlined text-[14px]">fast_forward</span>
+              <span className="material-symbols-outlined text-[13px]">fast_forward</span>
             </button>
           )}
         </div>
@@ -807,8 +784,8 @@ function ChatMessageBubble({
           </div>
         )}
 
-        {/* Render Structured Sections Deck */}
-        <div className="space-y-3">
+        {/* Structured Sections Stream */}
+        <div className="space-y-2.5">
           {sections.map((section) => (
             <SectionCard
               key={section.id}
@@ -818,10 +795,10 @@ function ChatMessageBubble({
             />
           ))}
 
-          {/* Live Blinking Typewriter Cursor */}
+          {/* Typewriter Cursor */}
           {message.isStreaming && (
             <div className="flex items-center gap-1 pt-1 text-primary">
-              <span className="w-2.5 h-4 bg-primary inline-block animate-pulse rounded-xs" />
+              <span className="w-2 h-3.5 bg-primary inline-block animate-pulse rounded-xs" />
               <span className="text-[11px] font-mono italic text-on-surface-variant">
                 Writing mathematical derivation...
               </span>
@@ -829,8 +806,8 @@ function ChatMessageBubble({
           )}
         </div>
 
-        {/* Bottom Toolbar: Copy Full Solution & Timestamp */}
-        <div className="flex items-center justify-between pt-2.5 border-t border-outline-variant/40 text-xs">
+        {/* Bottom Actions Row */}
+        <div className="flex items-center justify-between pt-2 border-t border-outline-variant/30 text-xs">
           <button
             type="button"
             onClick={() =>
@@ -839,12 +816,15 @@ function ChatMessageBubble({
                 `full-${message.id}`
               )
             }
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface text-xs font-label font-bold transition-all shadow-2xs border border-outline-variant/50"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container/70 hover:bg-surface-container text-on-surface text-xs font-label font-medium transition-all shadow-2xs border border-outline-variant/40"
+            title="Copy Full Solution"
           >
-            <span className="material-symbols-outlined text-[15px] text-primary">
+            <span className="material-symbols-outlined text-[14px] text-primary">
               {copiedKey === `full-${message.id}` ? 'check' : 'content_copy'}
             </span>
-            <span>{copiedKey === `full-${message.id}` ? 'Copied Solution!' : 'Copy Full Solution'}</span>
+            <span className="text-[11px] font-semibold">
+              {copiedKey === `full-${message.id}` ? 'Copied' : 'Copy Solution'}
+            </span>
           </button>
 
           <span className="text-[10px] text-on-surface-variant font-label">{message.timestamp}</span>
@@ -860,9 +840,11 @@ function AiTutorContent() {
   const { user } = useAuth();
   const { mode } = useExamMode();
 
-  // Mobile Single Tab State: 'chat' or 'tools'
+  // Mobile Tab: 'chat' | 'tools'
   const [activeTab, setActiveTab] = useState<'chat' | 'tools'>('chat');
   const [selectedLanguage, setSelectedLanguage] = useState<'auto' | 'english' | 'hindi' | 'punjabi'>('auto');
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // File & Image Attachment State (Max 25 MB)
@@ -883,8 +865,8 @@ Good day, aspiring scholar. I am Clara, your formal StatXam Academic Tutor for N
 
 **Given Parameters**  
 - Multilingual Mode: English, Hindi, Punjabi & Regional Indian languages.
-- Capabilities: Step-by-step numerical derivations, LaTeX mathematical functions, code algorithms, and official marking schemes.
-- Upload Limit: Supports PDF documents, question papers, and photos up to **25 MB**.
+- Capabilities: Step-by-step numerical derivations, LaTeX mathematical functions, and marking rubrics.
+- Upload Limit: PDF documents and photo scans up to **25 MB**.
 
 **Exam Insight / Common Trap**  
 Snap a photo of any question, upload a PDF/image, or paste a problem below to begin your session!`,
@@ -932,7 +914,7 @@ A + \\delta_m = i + e \\implies \\delta_m = 2i - A
 
 **Final Answer**  
 \\[
-\\boxed{ \\delta_m = 30^\\circ, \\quad n = \\sqrt{2} \\approx 1.414 }
+\\delta_m = 30^\\circ, \\quad n = \\sqrt{2} \\approx 1.414
 \\]
 
 **Exam Insight / Common Trap**  
@@ -1000,7 +982,6 @@ Students frequently forget that for an equilateral prism, \\(A = 60^\\circ\\) is
         dataUrl: reader.result as string,
       });
       showToast(`Attached ${file.name} (${sizeMb})`);
-      // If student attached on Tools tab, switch to Chat tab to see it
       setActiveTab('chat');
     };
     reader.readAsDataURL(file);
@@ -1067,7 +1048,6 @@ Students frequently forget that for an equilateral prism, \\(A = 60^\\circ\\) is
     setMessages((prev) => [...prev, userMsg]);
     setInputText('');
     setIsTyping(true);
-    // Ensure chat view is active
     setActiveTab('chat');
 
     const effectiveLang =
@@ -1228,7 +1208,7 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
   };
 
   return (
-    <div className="fixed inset-x-0 top-16 bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] lg:static lg:inset-auto z-20 flex flex-col overflow-hidden bg-surface px-2.5 sm:px-4 lg:px-8 pt-2 pb-1 lg:py-6 lg:max-w-7xl lg:mx-auto">
+    <div className="fixed inset-x-0 top-16 bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] lg:static lg:inset-auto z-20 flex flex-col overflow-hidden bg-surface px-2.5 sm:px-4 lg:px-8 pt-1 pb-1 lg:py-6 lg:max-w-7xl lg:mx-auto">
       {/* Hidden File Inputs for Document & Image Upload */}
       <input
         ref={fileInputRef}
@@ -1253,120 +1233,154 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
         className="hidden"
       />
 
-      {/* Top Header Bar */}
-      <div className="shrink-0 flex items-center justify-between gap-2 mb-2 sm:mb-4">
+      {/* COMPACT STANDARDIZED HEADER BAR */}
+      <div className="shrink-0 flex items-center justify-between gap-2 mb-2">
+        {/* Left: Mobile Segmented Switcher OR Desktop Title */}
         <div className="flex items-center gap-2 min-w-0">
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic('medium');
-              window.dispatchEvent(new CustomEvent('statxam_replay_ai_intro'));
-            }}
-            title="Tap to play AI Launch Intro Animation"
-            className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-primary/10 hover:bg-primary/20 text-primary flex items-center justify-center font-bold text-lg shrink-0 border border-primary/20 shadow-2xs active:scale-95 transition-all"
-          >
-            <span className="material-symbols-outlined text-[19px] sm:text-[22px] animate-pulse">psychology</span>
-          </button>
-          <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <h1 className="font-headline text-sm sm:text-2xl font-bold text-on-surface truncate">
-                {mode === 'ielts' ? 'IELTS Band 0–9 Examiner' : 'AI Neural Doubt Solver'}
-              </h1>
-              <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold font-label bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                {mode === 'ielts' ? 'Band 9 Active' : 'Online'}
-              </span>
+          {/* Mobile Single-Row Segmented Switcher */}
+          <div className="flex lg:hidden items-center p-0.5 bg-[#ede4d8] rounded-full border border-outline-variant/60 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                setActiveTab('chat');
+              }}
+              className={`px-3 py-1 rounded-full text-xs font-headline font-bold flex items-center gap-1.5 transition-all ${
+                activeTab === 'chat'
+                  ? 'bg-surface-container-lowest text-on-surface shadow-xs'
+                  : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[15px] text-primary">chat</span>
+              <span>Doubt Chat</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('light');
+                setActiveTab('tools');
+              }}
+              className={`px-3 py-1 rounded-full text-xs font-headline font-bold flex items-center gap-1.5 transition-all ${
+                activeTab === 'tools'
+                  ? 'bg-surface-container-lowest text-on-surface shadow-xs'
+                  : 'text-on-surface-variant hover:text-on-surface'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[15px] text-primary">calculate</span>
+              <span>Scanner &amp; Formulas</span>
+            </button>
+          </div>
+
+          {/* Desktop Title & Online Badge */}
+          <div className="hidden lg:flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                triggerHaptic('medium');
+                window.dispatchEvent(new CustomEvent('statxam_replay_ai_intro'));
+              }}
+              title="Tap to replay AI Launch Intro"
+              className="w-10 h-10 rounded-2xl bg-primary/10 hover:bg-primary/20 text-primary flex items-center justify-center font-bold text-lg border border-primary/20 shadow-2xs active:scale-95 transition-all"
+            >
+              <span className="material-symbols-outlined text-[22px] animate-pulse">psychology</span>
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-headline text-xl font-bold text-on-surface">
+                  {mode === 'ielts' ? 'IELTS Band 0–9 Examiner' : 'AI Neural Doubt Solver'}
+                </h1>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold font-label bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  {mode === 'ielts' ? 'Band 9 Active' : 'Online'}
+                </span>
+              </div>
+              <p className="text-xs text-on-surface-variant font-body">
+                {mode === 'ielts'
+                  ? 'Official Cambridge Rubrics • Writing & Speaking • Step Solutions'
+                  : 'Step solutions • KaTeX Math • Multi-Board Marking Schemes'}
+              </p>
             </div>
-            <p className="text-[10px] sm:text-xs text-on-surface-variant truncate font-body">
-              {mode === 'ielts'
-                ? 'Official Cambridge Rubrics • Writing & Speaking • Max 25 MB Allowed'
-                : 'Step solutions • KaTeX Math • Max 25 MB Allowed'}
-            </p>
           </div>
         </div>
 
-        {/* Right Top Controls: Language Selector & Reset */}
+        {/* Right: Language Pill Dropdown & New Chat Icon */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* Language Selector Pill */}
-          <div className="flex items-center gap-0.5 p-0.5 bg-surface-container rounded-xl border border-outline-variant/60 text-xs font-label">
-            {[
-              { id: 'auto', label: 'Auto' },
-              { id: 'english', label: 'EN' },
-              { id: 'hindi', label: 'हि' },
-              { id: 'punjabi', label: 'ਪੰ' },
-            ].map((l) => (
-              <button
-                key={l.id}
-                type="button"
-                onClick={() => {
-                  triggerHaptic('light');
-                  setSelectedLanguage(l.id as any);
-                }}
-                className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-lg text-[10px] sm:text-[11px] font-semibold transition-all ${selectedLanguage === l.id
-                    ? 'bg-primary text-on-primary shadow-2xs'
-                    : 'text-on-surface-variant hover:text-on-surface'
-                  }`}
-                title={`Language: ${l.label}`}
-              >
-                {l.label}
-              </button>
-            ))}
+          {/* Language Dropdown Selector */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setShowLangMenu((v) => !v)}
+              className="h-7 sm:h-8 px-2 sm:px-2.5 rounded-full bg-surface-container hover:bg-surface-container-high border border-outline-variant/60 text-xs font-semibold text-on-surface flex items-center gap-1 transition-colors shadow-2xs"
+              title="Select AI response language"
+            >
+              <span className="material-symbols-outlined text-[14px] text-primary">translate</span>
+              <span className="text-[10px] sm:text-[11px] font-label uppercase">
+                {selectedLanguage === 'auto' ? 'Auto' : selectedLanguage.slice(0, 2).toUpperCase()}
+              </span>
+              <span className="material-symbols-outlined text-[13px] text-on-surface-variant">expand_more</span>
+            </button>
+
+            {showLangMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setShowLangMenu(false)}
+                />
+                <div className="absolute right-0 top-full mt-1.5 w-36 bg-surface-container-lowest border border-outline-variant/70 rounded-2xl p-1 shadow-lg z-40 space-y-0.5 animate-in fade-in duration-100">
+                  {[
+                    { id: 'auto', label: 'Auto Detect' },
+                    { id: 'english', label: 'English (EN)' },
+                    { id: 'hindi', label: 'हिंदी (HI)' },
+                    { id: 'punjabi', label: 'ਪੰਜਾਬੀ (PU)' },
+                  ].map((l) => (
+                    <button
+                      key={l.id}
+                      type="button"
+                      onClick={() => {
+                        triggerHaptic('light');
+                        setSelectedLanguage(l.id as any);
+                        setShowLangMenu(false);
+                      }}
+                      className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs font-label transition-colors flex items-center justify-between ${
+                        selectedLanguage === l.id
+                          ? 'bg-primary/10 text-primary font-bold'
+                          : 'text-on-surface hover:bg-surface-container'
+                      }`}
+                    >
+                      <span>{l.label}</span>
+                      {selectedLanguage === l.id && (
+                        <span className="material-symbols-outlined text-[14px]">check</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Reset Chat Button */}
           <button
             type="button"
             onClick={handleResetChat}
-            className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-surface-container hover:bg-surface-container-high border border-outline-variant/60 text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors"
-            title="Reset conversation"
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-surface-container hover:bg-surface-container-high border border-outline-variant/60 text-on-surface-variant hover:text-on-surface flex items-center justify-center transition-colors shadow-2xs"
+            title="Start New Doubt Session"
           >
-            <span className="material-symbols-outlined text-[16px] sm:text-[17px]">restart_alt</span>
+            <span className="material-symbols-outlined text-[16px]">restart_alt</span>
           </button>
         </div>
       </div>
 
-      {/* MOBILE SINGLE TAB SWITCHER (< lg screens) */}
-      <div className="shrink-0 flex lg:hidden items-center p-1 bg-surface-container rounded-2xl border border-outline-variant/60 mb-2 shadow-2xs">
-        <button
-          type="button"
-          onClick={() => {
-            triggerHaptic('light');
-            setActiveTab('chat');
-          }}
-          className={`flex-1 py-1.5 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${activeTab === 'chat'
-              ? 'bg-primary text-on-primary shadow-xs'
-              : 'text-on-surface-variant hover:text-on-surface'
-            }`}
-        >
-          <span className="material-symbols-outlined text-[16px]">chat</span>
-          <span>Doubt Chat</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            triggerHaptic('light');
-            setActiveTab('tools');
-          }}
-          className={`flex-1 py-1.5 rounded-xl text-xs font-headline font-bold flex items-center justify-center gap-1.5 transition-all ${activeTab === 'tools'
-              ? 'bg-primary text-on-primary shadow-xs'
-              : 'text-on-surface-variant hover:text-on-surface'
-            }`}
-        >
-          <span className="material-symbols-outlined text-[16px]">calculate</span>
-          <span>Scanner &amp; Formulas</span>
-        </button>
-      </div>
-
-      {/* Responsive Content: Fits exact available screen on mobile; Side-by-side on desktop */}
+      {/* Main Grid: Fits exact available screen on mobile; Side-by-side on desktop */}
       <div className="flex-1 min-h-0 w-full overflow-hidden lg:grid lg:grid-cols-12 lg:gap-5 lg:items-start">
         {/* COLUMN 1: PURE FOCUSED CHAT TAB */}
         <div
-          className={`${activeTab === 'chat' ? 'flex' : 'hidden lg:flex'
-            } lg:col-span-8 flex-col bg-surface-container-low border border-outline-variant/60 rounded-2xl p-2.5 sm:p-4 shadow-xs h-full lg:h-[720px] overflow-hidden justify-between`}
+          className={`${
+            activeTab === 'chat' ? 'flex' : 'hidden lg:flex'
+          } lg:col-span-8 flex-col lg:bg-surface-container-low lg:border lg:border-outline-variant/60 lg:rounded-3xl lg:p-4 lg:shadow-xs h-full lg:h-[730px] overflow-hidden justify-between`}
         >
-          {/* Chat Messages Stream with Auto-Scroll */}
-          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pr-1 pb-1">
+          {/* Messages Stream directly on Warm Canvas */}
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pr-1 pb-2">
             {messages.map((m) => (
               <ChatMessageBubble
                 key={m.id}
@@ -1386,8 +1400,8 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Sticky Bottom Dock: Previews, Quick Prompts & Input Bar */}
-          <div className="mt-1 pt-1.5 border-t border-outline-variant/50 flex flex-col gap-1.5 shrink-0 bg-surface-container-low">
+          {/* Bottom Dock: Previews, Quick Prompts & Modern Input Bar */}
+          <div className="mt-1 pt-1.5 flex flex-col gap-1.5 shrink-0">
             {/* Attachment Preview Tray */}
             {selectedAttachment && (
               <div className="p-2 rounded-xl bg-surface-container border border-primary/30 flex items-center justify-between gap-2 shadow-2xs animate-in fade-in duration-150">
@@ -1409,7 +1423,7 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
                       <span>{selectedAttachment.sizeMb}</span>
                       <span>•</span>
                       <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                        Within {MAX_FILE_SIZE_MB} MB Limit
+                        Ready for OCR
                       </span>
                     </div>
                   </div>
@@ -1425,62 +1439,117 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
               </div>
             )}
 
-            {/* Quick Prompts Horizontal Scroll */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-              {(mode === 'ielts'
-                ? [
-                    'Evaluate Task 2 essay: Environmental tax vs incentives',
-                    'True/False/Not Given strategy for academic reading',
-                    'IELTS Speaking Part 2: Describe a memorable journey',
-                    'Band 8.5 academic lexical collocations for education',
-                  ]
-                : [
-                    'Prism formula n = sin((A+dm)/2)/sin(A/2)',
-                    'Circle diameter subtends right angle proof',
-                    'Concave mirror focal length calculation',
-                    'Star triangle Python code',
-                  ]
-              ).map((prompt) => (
-                <button
-                  key={prompt}
-                  onClick={() => handleSendMessage(prompt)}
-                  className="px-2 py-0.5 rounded-full bg-surface-container hover:bg-surface-container-high text-[10px] sm:text-[11px] font-label text-on-surface-variant border border-outline-variant/50 shrink-0 transition-colors whitespace-nowrap"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
+            {/* Quick Prompts: Shown only when messages length <= 2 to save screen space */}
+            {messages.length <= 2 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                {(mode === 'ielts'
+                  ? [
+                      'Evaluate Task 2 essay: Environmental tax vs incentives',
+                      'True/False/Not Given strategy for academic reading',
+                      'IELTS Speaking Part 2: Describe a memorable journey',
+                      'Band 8.5 academic lexical collocations for education',
+                    ]
+                  : [
+                      'Prism formula n = sin((A+dm)/2)/sin(A/2)',
+                      'Circle diameter subtends right angle proof',
+                      'Concave mirror focal length calculation',
+                      'Star triangle Python code',
+                    ]
+                ).map((prompt) => (
+                  <button
+                    key={prompt}
+                    onClick={() => handleSendMessage(prompt)}
+                    className="px-2.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-[10px] sm:text-[11px] font-label text-on-surface-variant border border-outline-variant/50 shrink-0 transition-colors whitespace-nowrap"
+                  >
+                    {prompt}
+                  </button>
+                ))}
+              </div>
+            )}
 
-            {/* Main Input Dock Bar */}
-            <div className="flex items-center gap-1 bg-surface-container-lowest border border-outline-variant/70 rounded-2xl p-1 sm:p-1.5 focus-within:border-primary transition-colors shadow-2xs">
-              {/* Camera Snap */}
+            {/* Modern iOS-Style Input Bar with Single + Attachment Popover */}
+            <div className="relative flex items-center gap-1.5 bg-surface-container-lowest border border-outline-variant/70 rounded-full px-2 py-1.5 focus-within:border-primary transition-all shadow-2xs">
+              {/* Attachment Popover Action Sheet */}
+              {showAttachMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setShowAttachMenu(false)}
+                  />
+                  <div className="absolute left-2 bottom-full mb-2 w-64 bg-surface-container-lowest border border-outline-variant/70 rounded-2xl p-2 shadow-xl z-40 space-y-1 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-2.5 py-1 text-[10px] font-mono font-bold text-on-surface-variant uppercase tracking-wider border-b border-outline-variant/30 flex items-center justify-between">
+                      <span>Attach Problem</span>
+                      <span className="text-primary font-bold">Max {MAX_FILE_SIZE_MB} MB</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAttachMenu(false);
+                        handleCameraSnap();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-on-surface hover:bg-surface-container transition-colors"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-[17px]">photo_camera</span>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-bold leading-tight">Camera Snapshot</p>
+                        <p className="text-[10px] text-on-surface-variant">Live paper or question snap</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAttachMenu(false);
+                        imageInputRef.current?.click();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-on-surface hover:bg-surface-container transition-colors"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-[17px]">photo_library</span>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-bold leading-tight">Photo Gallery</p>
+                        <p className="text-[10px] text-on-surface-variant">Select image or diagram</p>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAttachMenu(false);
+                        fileInputRef.current?.click();
+                      }}
+                      className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-xs font-semibold text-on-surface hover:bg-surface-container transition-colors"
+                    >
+                      <div className="w-7 h-7 rounded-lg bg-red-500/10 text-red-600 flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-[17px]">picture_as_pdf</span>
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-bold leading-tight">Upload Exam PDF</p>
+                        <p className="text-[10px] text-on-surface-variant">Question paper or mock scan</p>
+                      </div>
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* Single Attach Plus Button */}
               <button
                 type="button"
-                onClick={handleCameraSnap}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
-                title="Camera Snap"
+                onClick={() => setShowAttachMenu((v) => !v)}
+                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-colors shrink-0 ${
+                  showAttachMenu
+                    ? 'bg-primary text-on-primary'
+                    : 'bg-surface-container hover:bg-surface-container-high text-primary'
+                }`}
+                title="Attach question photo or PDF"
               >
-                <span className="material-symbols-outlined text-[17px]">photo_camera</span>
-              </button>
-
-              {/* Photo Gallery Picker */}
-              <button
-                type="button"
-                onClick={() => imageInputRef.current?.click()}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
-                title="Select Photo (Max 25 MB)"
-              >
-                <span className="material-symbols-outlined text-[17px]">image</span>
-              </button>
-
-              {/* Document / PDF Attachment */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-surface-container hover:bg-surface-container-high text-primary flex items-center justify-center transition-colors shrink-0"
-                title="Attach PDF (Max 25 MB)"
-              >
-                <span className="material-symbols-outlined text-[17px]">attach_file</span>
+                <span className="material-symbols-outlined text-[19px]">
+                  {showAttachMenu ? 'close' : 'add'}
+                </span>
               </button>
 
               <input
@@ -1491,33 +1560,35 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
                 placeholder={
                   selectedAttachment
                     ? `Ask about ${selectedAttachment.name}...`
-                    : `Ask Clara or attach question (Max ${MAX_FILE_SIZE_MB} MB)...`
+                    : mode === 'ielts'
+                      ? 'Ask Clara for IELTS feedback...'
+                      : 'Ask Clara a doubt...'
                 }
                 className="flex-1 bg-transparent px-2 py-1 text-xs sm:text-sm text-on-surface placeholder:text-outline focus:outline-none font-body min-w-0"
               />
 
               <button
                 type="button"
+                disabled={!inputText.trim() && !selectedAttachment}
                 onClick={() => handleSendMessage()}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-primary hover:bg-primary-container text-on-primary flex items-center justify-center shadow-2xs active:scale-95 transition-all shrink-0"
+                className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center transition-all shrink-0 ${
+                  inputText.trim() || selectedAttachment
+                    ? 'bg-primary text-on-primary shadow-xs active:scale-95'
+                    : 'bg-surface-container text-on-surface-variant/40 cursor-not-allowed'
+                }`}
                 title="Send"
               >
-                <span className="material-symbols-outlined text-[17px]">send</span>
+                <span className="material-symbols-outlined text-[18px]">arrow_upward</span>
               </button>
-            </div>
-
-            {/* Allowed Specs Helper */}
-            <div className="flex items-center justify-between px-1 text-[9px] sm:text-[10px] font-mono text-on-surface-variant">
-              <span>Supports PDF, PNG &amp; JPG</span>
-              <span className="font-bold text-primary">Max {MAX_FILE_SIZE_MB} MB Allowed</span>
             </div>
           </div>
         </div>
 
         {/* COLUMN 2: TOOLS TAB */}
         <div
-          className={`${activeTab === 'tools' ? 'block' : 'hidden lg:block'
-            } lg:col-span-4 h-full lg:h-[720px] overflow-y-auto overscroll-contain space-y-3.5 pr-1 pb-2`}
+          className={`${
+            activeTab === 'tools' ? 'block' : 'hidden lg:block'
+          } lg:col-span-4 h-full lg:h-[730px] overflow-y-auto overscroll-contain space-y-3.5 pr-1 pb-2`}
         >
           {/* Neural OCR Document Scanner Card */}
           <div className="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
