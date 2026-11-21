@@ -11,7 +11,7 @@ import { getStudentCoins, getPaperContributions, PaperContribution } from '@/lib
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, logout, requestTelegramOtp } = useAuth();
+  const { user, loading, logout, requestTelegramOtp } = useAuth();
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [cacheSize, setCacheSize] = useState('12.4 MB');
@@ -25,15 +25,22 @@ export default function ProfilePage() {
   });
 
   useEffect(() => {
-    const studentId = user?.id || 'scholar-allindia-01';
+    if (!loading && !user) {
+      router.push('/auth/login');
+    }
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    const studentId = user.id;
     setCoins(getStudentCoins(studentId));
     const allContribs = getPaperContributions();
-    setMyContributions(allContribs.filter((c) => c.studentId === studentId || c.studentName === user?.fullName));
+    setMyContributions(allContribs.filter((c) => c.studentId === studentId || c.studentName === user.fullName));
 
     const handleCoinsUpdated = (e: any) => {
       setCoins(getStudentCoins(studentId));
       const updatedContribs = getPaperContributions();
-      setMyContributions(updatedContribs.filter((c) => c.studentId === studentId || c.studentName === user?.fullName));
+      setMyContributions(updatedContribs.filter((c) => c.studentId === studentId || c.studentName === user.fullName));
     };
 
     window.addEventListener('statxam_coins_updated', handleCoinsUpdated);
@@ -56,22 +63,24 @@ export default function ProfilePage() {
   };
 
   const handleTestOtp = async () => {
+    if (!user) return;
     triggerHaptic('medium');
-    const res = await requestTelegramOtp(user?.mobile || '+91 98765 43210');
+    const res = await requestTelegramOtp(user.mobile);
     showToast(res.message);
   };
 
   const handleExportData = () => {
+    if (!user) return;
     triggerHaptic('medium');
     const studentData = {
-      name: user?.fullName || 'Gurpreet Singh',
-      mobile: user?.mobile || '+91 98765 43210',
-      targetExam: user?.targetExam || 'PSEB Class 10',
-      targetInstitution: user?.targetInstitution || 'Punjab State Merit',
-      rankEstimate: user?.estimatedRank || 142,
-      accuracy: `${user?.accuracy || 89.4}%`,
-      streakDays: user?.streakDays || 7,
-      questionsSolved: user?.questionsSolved || 1280,
+      name: user.fullName,
+      mobile: user.mobile,
+      targetExam: user.targetExam,
+      targetInstitution: user.targetInstitution,
+      rankEstimate: user.estimatedRank,
+      accuracy: `${user.accuracy}%`,
+      streakDays: user.streakDays,
+      questionsSolved: user.questionsSolved,
       activePlugins: [
         '@capacitor/camera',
         '@capacitor/keyboard',
@@ -106,6 +115,17 @@ export default function ProfilePage() {
     logout();
     router.push('/auth/login');
   };
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center p-4">
+        <div className="w-10 h-10 border-3 border-primary border-t-transparent rounded-full animate-spin mb-3" />
+        <p className="text-xs font-label uppercase tracking-widest text-primary font-bold">
+          Authenticating Scholar Profile...
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-2 md:py-6 space-y-6">
@@ -147,15 +167,15 @@ export default function ProfilePage() {
 
               <div className="flex flex-col min-w-0 flex-1">
                 <h2 className="font-headline text-xl font-bold text-on-surface truncate">
-                  {user?.fullName || 'Gurpreet Singh'}
+                  {user.fullName}
                 </h2>
                 <div className="flex items-center gap-1.5 mt-0.5 text-xs text-primary font-label font-semibold">
                   <span className="material-symbols-outlined text-[14px]">flag</span>
-                  <span className="truncate">{user?.targetExam || 'PSEB Class 10 Punjab Board'}</span>
+                  <span className="truncate">{user.targetExam || 'National Board Exam'}</span>
                 </div>
                 <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-surface-container text-on-surface-variant text-xs self-start border border-outline-variant/50 font-label">
                   <span className="material-symbols-outlined text-[13px] text-primary">school</span>
-                  <span className="truncate">{user?.targetInstitution || 'Target: State Top 500 Merit'}</span>
+                  <span className="truncate">{user.targetInstitution || 'Target: Merit Rank'}</span>
                 </div>
               </div>
             </div>
@@ -281,7 +301,7 @@ export default function ProfilePage() {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[11px] text-on-surface-variant font-label font-medium">Registered Mobile</span>
-                  <span className="text-xs font-semibold text-on-surface font-mono">{user?.mobile || '+91 98765 43210'}</span>
+                  <span className="text-xs font-semibold text-on-surface font-mono">{user.mobile}</span>
                 </div>
               </div>
               <span className="text-[11px] text-primary font-bold font-label">Verified</span>

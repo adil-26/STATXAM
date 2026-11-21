@@ -9,37 +9,19 @@ import { sendTelegramOtp, verifyTelegramOtpCode } from './supabase-service';
 interface AuthContextType {
   user: PilotProfile | null;
   loading: boolean;
-  login: (phone: string, pass: string) => Promise<{ success: boolean; error?: string }>;
-  signup: (data: Partial<PilotProfile>, pass: string) => Promise<{ success: boolean; error?: string }>;
-  loginAsDemo: (customProfile?: Partial<PilotProfile>) => void;
+  login: (identity: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  signup: (data: Partial<PilotProfile> & { email?: string }, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   requestTelegramOtp: (mobile: string) => Promise<{ success: boolean; message: string }>;
   resetPasswordViaTelegramOtp: (otp: string, newPass: string) => Promise<{ success: boolean; error?: string }>;
   refreshProfile: () => Promise<void>;
 }
 
-export const DEFAULT_DEMO_PROFILE: PilotProfile = {
-  id: 'scholar-allindia-01',
-  fullName: 'Aarav Sharma',
-  mobile: '+91 98765 43210',
-  language: 'english',
-  targetExam: 'CBSE Class 10',
-  targetInstitution: 'Top 500 State Merit',
-  estimatedRank: 120,
-  accuracy: 88.5,
-  streakDays: 7,
-  questionsSolved: 450,
-  coins: 250,
-  telegramLinked: true,
-  telegramHandle: '@statxambot',
-};
-
 const AuthContext = createContext<AuthContextType>({
   user: null,
   loading: true,
   login: async () => ({ success: false }),
   signup: async () => ({ success: false }),
-  loginAsDemo: () => { },
   logout: () => { },
   requestTelegramOtp: async () => ({ success: false, message: '' }),
   resetPasswordViaTelegramOtp: async () => ({ success: false }),
@@ -78,6 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 accuracy: Number(data.accuracy),
                 streakDays: data.streak_days,
                 questionsSolved: data.questions_solved,
+                coins: parsed.coins ?? 250,
                 telegramLinked: data.telegram_linked,
                 telegramHandle: data.telegram_handle,
               };
@@ -88,7 +71,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // offline, keep cached parsed
           }
         } else {
-          // Do NOT auto-login. Start cleanly so student lands on Sign Up / Setup first!
+          // First time install or signed out: Start with NO user so scholar lands on Sign Up / Setup!
           setUser(null);
         }
       } catch (err) {
@@ -122,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           accuracy: Number(data.accuracy),
           streakDays: data.streak_days,
           questionsSolved: data.questions_solved,
+          coins: user.coins ?? 250,
           telegramLinked: data.telegram_linked,
           telegramHandle: data.telegram_handle,
         };
@@ -133,113 +117,132 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const login = async (phone: string, pass: string) => {
+  const login = async (identity: string, pass: string) => {
+    if (!identity || !identity.trim()) {
+      return { success: false, error: 'Please enter your registered email or mobile number.' };
+    }
+    if (!pass || !pass.trim()) {
+      return { success: false, error: 'Please enter your password.' };
+    }
+
     setLoading(true);
     try {
-      const normalizedMobile = phone.startsWith('+91') ? phone : `+91 ${phone.trim()}`;
+      const res = await fetch('/api/auth/login/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identity: identity.trim(),
+          password: pass.trim(),
+        }),
+      });
 
-      // 1. Try fetching existing user from Supabase
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !data.success || !data.user) {
+        return {
+          success: false,
+          error: data.error || 'Authentication rejected. Please check your credentials.',
+        };
+      }
+
+      const clientUser: PilotProfile = data.user;
+      setUser(clientUser);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('statxam_pilot_session', JSON.stringify(clientUser));
+      }
+      return { success: true };
+    } catch (err: any) {
+      // Offline fallback: check if client can reach supabase directly with Supabase Auth
       try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('mobile', normalizedMobile)
-          .single();
+        if (identity.includes('@')) {
+          const { data: authData, error: authErr } = await supabase.auth.signInWithPassword({
+            email: identity.trim().toLowerCase(),
+            password: pass.trim(),
+          });
+          if (!authErr && authData?.user) {
+            const { data: p } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', authData.user.id)
+              .maybeSingle();
 
-        if (!error && data) {
-          const remoteProfile: PilotProfile = {
-            id: data.id,
-            fullName: data.full_name,
-            mobile: data.mobile,
-            targetExam: data.target_exam,
-            targetInstitution: data.target_institution,
-            estimatedRank: data.estimated_rank,
-            accuracy: Number(data.accuracy),
-            streakDays: data.streak_days,
-            questionsSolved: data.questions_solved,
-            telegramLinked: data.telegram_linked,
-            telegramHandle: data.telegram_handle,
-          };
-          setUser(remoteProfile);
-          localStorage.setItem('statxam_pilot_session', JSON.stringify(remoteProfile));
-          return { success: true };
+            const clientUser: PilotProfile = {
+              id: authData.user.id,
+              fullName: p?.full_name || authData.user.email?.split('@')[0] || 'Scholar',
+              mobile: p?.mobile || authData.user.email || identity,
+              language: p?.language || 'english',
+              targetExam: p?.target_exam || 'CBSE & Pan-India Board',
+              targetInstitution: p?.target_institution || 'National Merit Rank',
+              estimatedRank: p?.estimated_rank || 150,
+              accuracy: p ? Number(p.accuracy) : 85.0,
+              streakDays: p?.streak_days || 1,
+              questionsSolved: p?.questions_solved || 0,
+              coins: 250,
+              telegramLinked: Boolean(p?.telegram_linked),
+              telegramHandle: p?.telegram_handle || '@statxambot',
+            };
+            setUser(clientUser);
+            localStorage.setItem('statxam_pilot_session', JSON.stringify(clientUser));
+            return { success: true };
+          }
         }
       } catch {
-        // remote failed, fall through to local
+        // network offline
       }
 
-      // 2. Local fallback
-      const profile: PilotProfile = {
-        ...DEFAULT_DEMO_PROFILE,
-        id: `scholar-${phone.replace(/\D/g, '').slice(-4) || '01'}`,
-        mobile: normalizedMobile,
+      return {
+        success: false,
+        error: err?.message || 'Authentication failed. Please check your credentials.',
       };
-      setUser(profile);
-      localStorage.setItem('statxam_pilot_session', JSON.stringify(profile));
-      return { success: true };
-    } catch (err: any) {
-      return { success: false, error: err.message || 'Authentication rejected' };
     } finally {
       setLoading(false);
     }
   };
 
-  const signup = async (data: Partial<PilotProfile>, pass: string) => {
+  const signup = async (data: Partial<PilotProfile> & { email?: string }, pass: string) => {
+    if (!pass || pass.length < 6) {
+      return { success: false, error: 'Password must be at least 6 characters long.' };
+    }
+
     setLoading(true);
     try {
-      const newProfile: PilotProfile = {
-        id: `scholar-${Date.now()}`,
-        fullName: data.fullName || 'New Scholar',
-        mobile: data.mobile || '+91 98765 43210',
-        language: data.language || 'english',
-        targetExam: data.targetExam || 'CBSE Class 10',
-        targetInstitution: data.targetInstitution || 'State Merit Rank',
-        estimatedRank: 150,
-        accuracy: 85.0,
-        streakDays: 1,
-        questionsSolved: 0,
-        telegramLinked: true,
-        telegramHandle: '@statxambot',
-      };
+      const targetEmail = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : '');
 
-      // Attempt remote profile insertion
-      try {
-        await supabase.from('profiles').insert({
-          id: newProfile.id,
-          full_name: newProfile.fullName,
-          mobile: newProfile.mobile,
-          language: newProfile.language,
-          target_exam: newProfile.targetExam,
-          target_institution: newProfile.targetInstitution,
-          estimated_rank: newProfile.estimatedRank,
-          accuracy: newProfile.accuracy,
-          streak_days: newProfile.streakDays,
-          questions_solved: newProfile.questionsSolved,
-          telegram_linked: newProfile.telegramLinked,
-          telegram_handle: newProfile.telegramHandle,
-        });
-      } catch (err) {
-        console.warn('[Auth] Remote profile insert warning:', err);
+      const res = await fetch('/api/auth/register/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: targetEmail,
+          password: pass.trim(),
+          fullName: data.fullName,
+          mobile: data.mobile,
+          language: data.language,
+          targetExam: data.targetExam,
+          targetInstitution: data.targetInstitution,
+        }),
+      });
+
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.success || !json.user) {
+        return {
+          success: false,
+          error: json.error || 'Registration failed. Please check your details.',
+        };
       }
 
-      setUser(newProfile);
-      localStorage.setItem('statxam_pilot_session', JSON.stringify(newProfile));
+      const clientUser: PilotProfile = json.user;
+      setUser(clientUser);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('statxam_pilot_session', JSON.stringify(clientUser));
+      }
       return { success: true };
     } catch (err: any) {
-      return { success: false, error: err.message || 'Registration failed' };
+      return {
+        success: false,
+        error: err?.message || 'Account registration service error.',
+      };
     } finally {
       setLoading(false);
-    }
-  };
-
-  const loginAsDemo = (customProfile?: Partial<PilotProfile>) => {
-    const demo = {
-      ...DEFAULT_DEMO_PROFILE,
-      ...customProfile,
-    };
-    setUser(demo);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('statxam_pilot_session', JSON.stringify(demo));
     }
   };
 
@@ -247,6 +250,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
     if (typeof window !== 'undefined') {
       localStorage.removeItem('statxam_pilot_session');
+    }
+    try {
+      supabase.auth.signOut();
+    } catch {
+      // ignore
     }
   };
 
@@ -270,7 +278,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         login,
         signup,
-        loginAsDemo,
         logout,
         requestTelegramOtp,
         resetPasswordViaTelegramOtp,

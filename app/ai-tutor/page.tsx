@@ -1228,7 +1228,7 @@ Welcome back! How may I assist your exam preparation today? Ask a question or at
   };
 
   return (
-    <div className="fixed inset-x-0 top-16 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] lg:static lg:inset-auto z-20 flex flex-col overflow-hidden bg-surface px-2.5 sm:px-4 lg:px-8 pt-2 pb-1 lg:py-6 lg:max-w-7xl lg:mx-auto">
+    <div className="fixed inset-x-0 top-16 bottom-[calc(5.75rem+env(safe-area-inset-bottom,0px))] lg:static lg:inset-auto z-20 flex flex-col overflow-hidden bg-surface px-2.5 sm:px-4 lg:px-8 pt-2 pb-1 lg:py-6 lg:max-w-7xl lg:mx-auto">
       {/* Hidden File Inputs for Document & Image Upload */}
       <input
         ref={fileInputRef}

@@ -9,7 +9,7 @@ import { useExamMode } from '@/components/ExamModeContext';
 
 export default function SignupPage() {
   const router = useRouter();
-  const { signup, loginAsDemo } = useAuth();
+  const { signup } = useAuth();
   const { setMode } = useExamMode();
 
   // Multi-step state: 1 = Account Details, 2 = Telegram Link Onboarding
@@ -66,6 +66,7 @@ export default function SignupPage() {
       const res = await signup(
         {
           fullName: fullName.trim(),
+          email: email.trim().toLowerCase(),
           mobile: email.trim(),
           language: 'english',
           targetExam: selectedTrack === 'ielts' ? 'IELTS Academic (Band 8.0+)' : 'CBSE & Pan-India Board',
@@ -186,18 +187,6 @@ export default function SignupPage() {
   // Skip Telegram for now
   const handleSkipTelegram = () => {
     triggerHaptic('light');
-    router.push('/');
-  };
-
-  const handleQuickDemo = (track: 'indian' | 'ielts') => {
-    triggerHaptic('medium');
-    setMode(track);
-    loginAsDemo({
-      fullName: track === 'ielts' ? 'Simran Kaur' : 'Aarav Sharma',
-      mobile: track === 'ielts' ? 'simran.ielts@statxam.com' : 'aarav.sharma@statxam.com',
-      targetExam: track === 'ielts' ? 'IELTS Academic (Band 8.5)' : 'CBSE Class 12 Science',
-      targetInstitution: track === 'ielts' ? 'University of British Columbia' : 'IIT Delhi',
-    });
     router.push('/');
   };
 
@@ -409,30 +398,7 @@ export default function SignupPage() {
               </button>
             </form>
 
-            {/* Quick Demo Options */}
-            <div className="pt-2 border-t border-[#e8dccb]/60 space-y-2">
-              <p className="text-[11px] text-center text-[#6e5a49] font-body">
-                Or jump straight in with demo credentials:
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo('indian')}
-                  className="py-2 px-2.5 rounded-xl bg-[#f3ebe0]/70 hover:bg-[#f3ebe0] text-[#2b2118] text-xs font-headline font-semibold border border-[#e8dccb] transition-all"
-                >
-                  🇮🇳 Indian Demo
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickDemo('ielts')}
-                  className="py-2 px-2.5 rounded-xl bg-[#f3ebe0]/70 hover:bg-[#f3ebe0] text-[#2b2118] text-xs font-headline font-semibold border border-[#e8dccb] transition-all"
-                >
-                  🌍 IELTS Demo
-                </button>
-              </div>
-            </div>
-
-            <div className="text-center pt-1">
+            <div className="text-center pt-2 border-t border-[#e8dccb]/60">
               <p className="text-xs text-[#6e5a49]">
                 Already have an account?{' '}
                 <Link href="/auth/login" className="text-[#c2652a] font-bold hover:underline">

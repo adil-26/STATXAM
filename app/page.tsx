@@ -11,7 +11,7 @@ import { useExamMode } from '@/components/ExamModeContext';
 import { IeltsDuolingoPath } from '@/components/IeltsDuolingoPath';
 
 export default function HomePage() {
-  const { user, loading, signup, loginAsDemo } = useAuth();
+  const { user, loading, signup } = useAuth();
   const { mode } = useExamMode();
   const [activeModalPaper, setActiveModalPaper] = useState<string | null>(null);
 
@@ -57,18 +57,6 @@ export default function HomePage() {
     if (!res.success && res.error) {
       setFormError(res.error);
     }
-  };
-
-  const handleInstantDemoLogin = (boardId?: string) => {
-    triggerHaptic('light');
-    const board = ALL_INDIAN_BOARDS.find((b) => b.id === boardId) || selectedBoard;
-    loginAsDemo({
-      fullName: 'Aarav Sharma',
-      mobile: '+91 98765 43210',
-      language: 'english',
-      targetExam: `${board.name} (${board.classes[0]})`,
-      targetInstitution: `${board.state} State Merit Rank 120`,
-    });
   };
 
   // 1. Loading State
@@ -379,21 +367,20 @@ export default function HomePage() {
             </form>
           )}
 
-          {/* Quick Demo Access Bar */}
+          {/* Sign In to Existing Account Bar */}
           <div className="pt-4 border-t border-outline-variant/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
             <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-primary text-[18px]">bolt</span>
+              <span className="material-symbols-outlined text-primary text-[18px]">account_circle</span>
               <span className="text-on-surface-variant">
-                Want to evaluate the cockpit instantly without signing up?
+                Already registered with StatXam?
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => handleInstantDemoLogin(selectedBoard.id)}
-              className="px-4 py-2 rounded-xl bg-secondary-container text-on-secondary-container hover:bg-secondary-container/80 text-xs font-label font-bold transition-colors shrink-0"
+            <Link
+              href="/auth/login"
+              className="px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-label font-bold transition-colors shrink-0 shadow-xs text-center"
             >
-              One-Click Demo Scholar Access
-            </button>
+              Sign In to Existing Account &rarr;
+            </Link>
           </div>
         </div>
       </div>

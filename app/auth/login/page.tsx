@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Telegram 2FA Reset Modal State
@@ -37,6 +38,7 @@ export default function LoginPage() {
     e.preventDefault();
     triggerHaptic('medium');
     setIsLoading(true);
+    setAuthError(null);
 
     const res = await login(identity, password);
     if (res.success) {
@@ -45,6 +47,7 @@ export default function LoginPage() {
       setTimeout(() => router.push('/'), 700);
     } else {
       triggerHaptic('error');
+      setAuthError(res.error || 'Authentication rejected. Please check your credentials.');
       showToast(res.error || 'Authentication rejected. Please check credentials.');
       setIsLoading(false);
     }
@@ -210,22 +213,30 @@ export default function LoginPage() {
             </p>
           </div>
 
+          {/* Error Banner */}
+          {authError && (
+            <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-700 text-xs flex items-start gap-2.5 animate-in fade-in duration-200">
+              <span className="material-symbols-outlined text-[18px] text-red-600 shrink-0 mt-0.5">error</span>
+              <div className="flex-1 font-body leading-relaxed font-semibold">{authError}</div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Identity Field */}
             <div className="flex flex-col space-y-1.5">
               <label className="font-label text-xs font-semibold text-on-surface-variant flex items-center justify-between">
-                <span>Mobile Number</span>
+                <span>Email or Mobile Number</span>
                 <span className="text-[10px] text-primary font-medium tracking-wide">ID Verified</span>
               </label>
               <div className="relative flex items-center">
                 <span className="material-symbols-outlined absolute left-3.5 text-on-surface-variant/60 text-lg">
-                  smartphone
+                  alternate_email
                 </span>
                 <input
                   type="text"
                   value={identity}
                   onChange={(e) => setIdentity(e.target.value)}
-                  placeholder="e.g. 9876543210"
+                  placeholder="scholar@example.com or mobile"
                   className="w-full bg-surface-container-lowest text-on-surface text-sm rounded-lg pl-10 pr-3.5 py-3 focus:outline-none focus:ring-1 focus:ring-primary shadow-xs placeholder:text-outline/70 transition-all font-body border border-outline-variant/60"
                   required
                 />
@@ -336,20 +347,6 @@ export default function LoginPage() {
               <span>Telegram Login</span>
             </button>
           </div>
-
-          {/* Quick Demo Access */}
-          <button
-            type="button"
-            onClick={() => {
-              triggerHaptic('light');
-              login('9876543210', 'AlphaNexus#2025');
-              router.push('/');
-            }}
-            className="w-full py-2.5 rounded-xl bg-secondary-container hover:bg-secondary-container/80 text-on-secondary-container font-label font-bold text-xs transition-colors flex items-center justify-center gap-1.5"
-          >
-            <span className="material-symbols-outlined text-[16px]">bolt</span>
-            <span>One-Click Demo Scholar Access</span>
-          </button>
         </div>
 
         {/* Security & Sync Trust Card */}

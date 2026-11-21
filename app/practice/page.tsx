@@ -61,7 +61,8 @@ export default function AllIndiaPracticeCatalogPage() {
   } | null>(null);
 
   useEffect(() => {
-    if (showFilterModal) {
+    const isAnyModalOpen = showFilterModal || showContributeModal || Boolean(pdfModalData);
+    if (isAnyModalOpen) {
       document.body.classList.add('overflow-hidden');
       window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: true } }));
     } else {
@@ -72,7 +73,7 @@ export default function AllIndiaPracticeCatalogPage() {
       document.body.classList.remove('overflow-hidden');
       window.dispatchEvent(new CustomEvent('statxam_modal_state', { detail: { open: false } }));
     };
-  }, [showFilterModal]);
+  }, [showFilterModal, showContributeModal, pdfModalData]);
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const showToast = (msg: string) => {
