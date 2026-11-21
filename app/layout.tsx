@@ -4,7 +4,7 @@ import { AuthProvider } from '@/lib/auth-context';
 import { ExamModeProvider } from '@/components/ExamModeContext';
 import AppHeader from '@/components/AppHeader';
 import BottomNav from '@/components/BottomNav';
-import AiLaunchAnimation from '@/components/AiLaunchAnimation';
+import StatXamSplash from '@/components/StatXamSplash';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -44,7 +44,7 @@ export default function RootLayout({
       <body className="min-h-full bg-surface text-on-surface font-body antialiased flex flex-col selection:bg-primary/20">
         <AuthProvider>
           <ExamModeProvider>
-            <AiLaunchAnimation />
+            <StatXamSplash />
             <AppHeader />
             <main className="flex-1 w-full pt-16 md:pt-20 pb-28 md:pb-12 bg-surface relative min-h-screen">
               {children}

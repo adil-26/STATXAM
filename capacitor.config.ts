@@ -11,17 +11,17 @@ const config: CapacitorConfig = {
   },
   plugins: {
     StatusBar: {
-      style: 'DARK',
-      backgroundColor: '#10131a',
+      style: 'LIGHT',
+      backgroundColor: '#faf5ee',
     },
     Keyboard: {
       resize: 'body',
-      style: 'DARK',
+      style: 'LIGHT',
     },
     SplashScreen: {
-      launchShowDuration: 2000,
-      launchAutoHide: false,
-      backgroundColor: '#10131a',
+      launchShowDuration: 1500,
+      launchAutoHide: true,
+      backgroundColor: '#faf5ee',
       androidSplashResourceName: 'splash',
     },
   },
