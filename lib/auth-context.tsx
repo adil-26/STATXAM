@@ -5,6 +5,7 @@ import { PilotProfile } from './types';
 import { hideAppSplash } from './native-permissions';
 import { supabase } from './supabase';
 import { sendTelegramOtp, verifyTelegramOtpCode } from './supabase-service';
+import { getApiUrl } from './api-config';
 
 interface AuthContextType {
   user: PilotProfile | null;
@@ -127,7 +128,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login/', {
+      const res = await fetch(getApiUrl('/api/auth/login/'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -208,7 +209,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const targetEmail = data.email || (data.mobile && data.mobile.includes('@') ? data.mobile : '');
 
-      const res = await fetch('/api/auth/register/', {
+      const res = await fetch(getApiUrl('/api/auth/register/'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

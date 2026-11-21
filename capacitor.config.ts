@@ -4,11 +4,14 @@ const config: CapacitorConfig = {
   appId: 'com.statxam.app',
   appName: 'StatXam',
   webDir: 'out',
-  server: {
-    // Connect to production Vercel deployment so the mobile app always receives live AI & UI updates
-    url: process.env.CAPACITOR_SERVER_URL || 'https://statxam.vercel.app',
-    cleartext: true,
-  },
+  backgroundColor: '#faf5ee',
+  // Leaving server undefined bundles the UI inside the APK so it works 100% as a standalone native app
+  server: process.env.CAPACITOR_SERVER_URL
+    ? {
+        url: process.env.CAPACITOR_SERVER_URL,
+        cleartext: true,
+      }
+    : undefined,
   plugins: {
     StatusBar: {
       style: 'LIGHT',

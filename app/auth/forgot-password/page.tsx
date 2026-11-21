@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { triggerHaptic } from '@/lib/native-permissions';
 import { supabase } from '@/lib/supabase';
+import { getApiUrl } from '@/lib/api-config';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -67,7 +68,7 @@ export default function ForgotPasswordPage() {
       }
 
       // 2. Request OTP Session
-      const res = await fetch('/api/auth/tg/session/', {
+      const res = await fetch(getApiUrl('/api/auth/tg/session/'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim() }),
@@ -175,7 +176,7 @@ export default function ForgotPasswordPage() {
     setErrorMsg(null);
 
     try {
-      const res = await fetch('/api/auth/tg/session/', {
+      const res = await fetch(getApiUrl('/api/auth/tg/session/'), {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

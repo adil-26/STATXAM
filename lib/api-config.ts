@@ -1,43 +1,23 @@
 /**
- * StatXam Remote API Configuration
- * 
- * CRITICAL NATIVE CONSTRAINT:
- * Inside the Capacitor native shell, the webview runs at `capacitor://localhost` (or `http://localhost`).
- * Relative `/api/...` fetches will fail. Every network call MUST use an absolute URL
- * pointing to the remote Vercel production deployment: https://statxamp.vercel.app
+ * Resolves the absolute backend API endpoint URL.
+ * When running inside a native Capacitor Android APK, the origin is http://localhost or capacitor://localhost,
+ * so API calls must route to the live production server (https://statxam.vercel.app).
+ * In regular web and local dev, relative URLs (/api/...) are preserved.
  */
+export function getApiUrl(path: string): string {
+  const isCapacitorDevice =
+    typeof window !== 'undefined' &&
+    (window.location.origin === 'http://localhost' ||
+      window.location.origin === 'capacitor://localhost' ||
+      window.location.protocol === 'capacitor:' ||
+      Boolean((window as any)?.Capacitor?.isNativePlatform?.()));
 
-export const REMOTE_BASE_URL = 'https://statxamp.vercel.app';
+  const backendUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    (isCapacitorDevice ? 'https://statxam.vercel.app' : '');
 
-export function apiUrl(endpoint: string): string {
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return `${REMOTE_BASE_URL}${cleanEndpoint}`;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  return `${backendUrl}${cleanPath}`;
 }
 
-export async function fetchRemoteApi<T = any>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<{ data: T | null; error: string | null }> {
-  try {
-    const fullUrl = apiUrl(endpoint);
-    const headers = new Headers(options.headers || {});
-    if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
-      headers.set('Content-Type', 'application/json');
-    }
-
-    const res = await fetch(fullUrl, {
-      ...options,
-      headers,
-    });
-
-    if (!res.ok) {
-      const errorText = await res.text();
-      return { data: null, error: `Remote API error (${res.status}): ${errorText}` };
-    }
-
-    const json = (await res.json()) as T;
-    return { data: json, error: null };
-  } catch (err: any) {
-    return { data: null, error: err.message || 'Network transport failure' };
-  }
-}
+export const apiUrl = getApiUrl;

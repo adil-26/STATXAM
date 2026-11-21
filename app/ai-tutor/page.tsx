@@ -7,6 +7,7 @@ import { triggerHaptic, captureQuestionPhoto } from '@/lib/native-permissions';
 import { solveStudentDoubtWithGroq } from '@/lib/groq-service';
 import { useAuth } from '@/lib/auth-context';
 import { useExamMode } from '@/components/ExamModeContext';
+import { getApiUrl } from '@/lib/api-config';
 
 const MAX_FILE_SIZE_MB = 25;
 const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
@@ -1064,7 +1065,7 @@ Students frequently forget that for an equilateral prism, \\(A = 60^\\circ\\) is
     try {
       let explanation = '';
       try {
-        const apiRes = await fetch('/api/ai/solve/', {
+        const apiRes = await fetch(getApiUrl('/api/ai/solve/'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
