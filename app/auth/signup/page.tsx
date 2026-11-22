@@ -36,6 +36,7 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -92,6 +93,10 @@ export default function SignupPage() {
       setErrorMsg('Passwords do not match. Please verify both fields.');
       return;
     }
+    if (!acceptedTerms) {
+      setErrorMsg('Please review and accept the Terms & Conditions and Privacy Policy to proceed.');
+      return;
+    }
 
     triggerHaptic('medium');
     setIsLoading(true);
@@ -110,6 +115,7 @@ export default function SignupPage() {
         language: selectedLang,
         targetExam: `${selectedBoard.name} (${targetClass})`,
         targetInstitution: `${selectedBoard.state} State Merit Top 500`,
+        accepted_terms_at: new Date().toISOString(),
       },
       password
     );
@@ -542,6 +548,28 @@ export default function SignupPage() {
               </div>
             </div>
 
+            {/* DPDP & UGC Compliance Consent Checkbox */}
+            <label className="mt-4 flex items-start gap-3 rounded-2xl bg-surface-container-lowest p-3.5 border border-outline-variant/60 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={acceptedTerms}
+                onChange={(e) => setAcceptedTerms(e.target.checked)}
+                className="mt-0.5 h-4 w-4 accent-primary rounded cursor-pointer shrink-0"
+                required
+              />
+              <span className="text-xs leading-relaxed text-on-surface-variant font-body">
+                I agree to StatXam&apos;s{' '}
+                <Link href="/terms" target="_blank" className="font-semibold text-primary underline">
+                  Terms &amp; Conditions
+                </Link>{' '}
+                and{' '}
+                <Link href="/privacy" target="_blank" className="font-semibold text-primary underline">
+                  Privacy Policy
+                </Link>
+                , including community safety rules for student profiles, chat, and calling features.
+              </span>
+            </label>
+
             <div className="pt-4 flex items-center justify-between">
               <button
                 type="button"
@@ -555,8 +583,8 @@ export default function SignupPage() {
               </button>
               <button
                 type="submit"
-                disabled={isLoading}
-                className="px-6 py-3 rounded-xl bg-primary text-on-primary text-xs font-bold uppercase tracking-wider shadow-md hover:bg-primary/90 flex items-center gap-1.5 transition-all active:scale-95"
+                disabled={!acceptedTerms || isLoading}
+                className="px-6 py-3 rounded-xl bg-primary text-on-primary text-xs font-bold uppercase tracking-wider shadow-md hover:bg-primary/90 flex items-center gap-1.5 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
               >
                 {isLoading ? (
                   <span>Registering Scholar...</span>

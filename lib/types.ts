@@ -124,6 +124,7 @@ export interface PilotProfile {
   coins?: number;
   telegramLinked: boolean;
   telegramHandle?: string;
+  accepted_terms_at?: string;
   created_at?: string;
 }
 

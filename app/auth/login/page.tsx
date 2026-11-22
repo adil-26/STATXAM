@@ -378,6 +378,17 @@ export default function LoginPage() {
           </div>
         </div>
 
+        {/* Public Legal Compliance Links */}
+        <div className="flex items-center justify-center gap-3 text-[11px] text-on-surface-variant font-label pt-1 pb-3">
+          <Link href="/privacy" className="hover:text-primary transition-colors underline font-medium">
+            Privacy Policy
+          </Link>
+          <span className="text-outline-variant">•</span>
+          <Link href="/terms" className="hover:text-primary transition-colors underline font-medium">
+            Terms &amp; Conditions
+          </Link>
+        </div>
+
         {/* Telegram OTP Password Reset Modal */}
         {showOtpModal && (
           <div className="fixed inset-0 z-50 bg-[#3a302a]/60 backdrop-blur-md flex items-center justify-center p-4">

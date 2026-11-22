@@ -64,9 +64,11 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "[5/6] Compiling Native Android APK with Gradle..." -ForegroundColor Yellow
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 $env:ANDROID_HOME = "C:\Users\i.adil\AppData\Local\Android\Sdk"
-$env:PATH = "$env:JAVA_HOME\bin;$env:PATH"
+$javaBin = Join-Path $env:JAVA_HOME "bin"
+$env:PATH = "$javaBin;" + $env:PATH
 
-Set-Location "$rootDir\android"
+$androidDir = Join-Path $rootDir "android"
+Set-Location $androidDir
 & .\gradlew.bat assembleDebug
 
 if ($LASTEXITCODE -ne 0) {

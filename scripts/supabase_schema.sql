@@ -23,9 +23,13 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     questions_solved INTEGER DEFAULT 1280,
     telegram_linked BOOLEAN DEFAULT TRUE,
     telegram_handle TEXT DEFAULT '@StatXamAuthBot',
+    accepted_terms_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Migration support for existing profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS accepted_terms_at timestamptz DEFAULT now();
 
 -- 2. Chapters & Units Table (Subject-wise Syllabus Index)
 CREATE TABLE IF NOT EXISTS public.chapters (

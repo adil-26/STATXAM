@@ -19,6 +19,7 @@ export async function POST(req: NextRequest) {
       targetExam = 'CBSE & Pan-India Board',
       targetInstitution = 'National Merit Rank',
       language = 'english',
+      accepted_terms_at = new Date().toISOString(),
     } = body;
 
     if (!email || !email.includes('@')) {
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
             target_exam: targetExam,
             target_institution: targetInstitution,
             language,
+            accepted_terms_at,
           },
         }),
       });
@@ -93,6 +95,7 @@ export async function POST(req: NextRequest) {
             target_exam: targetExam,
             target_institution: targetInstitution,
             language,
+            accepted_terms_at,
           },
         }),
       });
@@ -122,6 +125,7 @@ export async function POST(req: NextRequest) {
       questions_solved: 0,
       telegram_linked: false,
       telegram_handle: '@statxambot',
+      accepted_terms_at,
     };
 
     try {
@@ -146,6 +150,7 @@ export async function POST(req: NextRequest) {
       coins: 250,
       telegramLinked: userProfile.telegram_linked,
       telegramHandle: userProfile.telegram_handle,
+      accepted_terms_at: userProfile.accepted_terms_at,
     };
 
     return NextResponse.json({

@@ -276,6 +276,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             language: data.language,
             targetExam: data.targetExam,
             targetInstitution: data.targetInstitution,
+            accepted_terms_at: data.accepted_terms_at || new Date().toISOString(),
           }),
         });
 
@@ -310,6 +311,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               language: data.language,
               target_exam: data.targetExam,
               target_institution: data.targetInstitution,
+              accepted_terms_at: data.accepted_terms_at || new Date().toISOString(),
             },
           },
         });
@@ -334,6 +336,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           coins: 250,
           telegramLinked: false,
           telegramHandle: '@statxambot',
+          accepted_terms_at: data.accepted_terms_at || new Date().toISOString(),
         };
 
         try {
@@ -351,6 +354,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               questions_solved: newProfile.questionsSolved,
               telegram_linked: false,
               telegram_handle: '@statxambot',
+              accepted_terms_at: newProfile.accepted_terms_at,
             },
             { onConflict: 'id' }
           );
