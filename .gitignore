@@ -34,6 +34,8 @@ android/build/**
 android/captures/
 *.apk
 *.aab
+*.jks
+*.keystore
 
 # Debug & Telemetry logs
 npm-debug.log*

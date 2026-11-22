@@ -1,8 +1,8 @@
-﻿# StatXam Automated Capacitor Export & Android APK Compiler
+# StatXam Automated Capacitor Export & Signed Android Release APK Compiler
 $ErrorActionPreference = "Stop"
 
 Write-Host "==========================================================" -ForegroundColor Cyan
-Write-Host "       StatXam Static Export & Native APK Build" -ForegroundColor Cyan
+Write-Host "   StatXam Static Export & Signed Release APK Build" -ForegroundColor Cyan
 Write-Host "==========================================================" -ForegroundColor Cyan
 
 $rootDir = (Get-Item -Path $PSScriptRoot\..).FullName
@@ -60,8 +60,8 @@ if ($LASTEXITCODE -ne 0) {
     throw "Capacitor sync failed with exit code $LASTEXITCODE"
 }
 
-# 5. Compile Native Debug APK with Gradle
-Write-Host "[5/6] Compiling Native Android APK with Gradle..." -ForegroundColor Yellow
+# 5. Compile Signed Release APK with Gradle
+Write-Host "[5/6] Compiling Signed Production Release APK with Gradle..." -ForegroundColor Yellow
 $env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
 $env:ANDROID_HOME = "C:\Users\i.adil\AppData\Local\Android\Sdk"
 $javaBin = Join-Path $env:JAVA_HOME "bin"
@@ -69,31 +69,36 @@ $env:PATH = "$javaBin;" + $env:PATH
 
 $androidDir = Join-Path $rootDir "android"
 Set-Location $androidDir
-& .\gradlew.bat assembleDebug
+& .\gradlew.bat assembleRelease
 
 if ($LASTEXITCODE -ne 0) {
-    throw "Gradle assembleDebug failed with exit code $LASTEXITCODE"
+    throw "Gradle assembleRelease failed with exit code $LASTEXITCODE"
 }
 
 Set-Location $rootDir
 
-# 6. Copy compiled APK to public/ for instant download/testing
-Write-Host "[6/6] Packaging and publishing APK..." -ForegroundColor Yellow
-$apkSource = "$rootDir\android\app\build\outputs\apk\debug\app-debug.apk"
-$apkDest = "$rootDir\public\statxam.apk"
+# 6. Copy compiled Release APK to public/ for instant upload to Indus Appstore / Play Console
+Write-Host "[6/6] Packaging and publishing Release APK..." -ForegroundColor Yellow
+$apkSource = "$rootDir\android\app\build\outputs\apk\release\app-release.apk"
+$apkDest = "$rootDir\public\statxam-release.apk"
+$apkVersionedDest = "$rootDir\public\statxam-v2.1.0-release.apk"
 
 if (Test-Path $apkSource) {
     Copy-Item -Path $apkSource -Destination $apkDest -Force
+    Copy-Item -Path $apkSource -Destination $apkVersionedDest -Force
     $apkInfo = Get-Item $apkDest
     $apkMb = [math]::Round($apkInfo.Length / 1MB, 2)
 
     Write-Host ""
     Write-Host "==========================================================" -ForegroundColor Green
-    Write-Host "✓ Native APK compiled successfully!" -ForegroundColor Green
-    Write-Host "  Location: $apkDest" -ForegroundColor White
-    Write-Host "  Size:     $apkMb MB" -ForegroundColor White
-    Write-Host "  Updated:  $($apkInfo.LastWriteTime)" -ForegroundColor White
+    Write-Host "✓ Signed Production Release APK compiled successfully!" -ForegroundColor Green
+    Write-Host "  Store Upload File: $apkVersionedDest" -ForegroundColor White
+    Write-Host "  Mirror File:       $apkDest" -ForegroundColor White
+    Write-Host "  Build Variant:     release (debuggable=false)" -ForegroundColor White
+    Write-Host "  Version:           2.1.0 (versionCode 210)" -ForegroundColor White
+    Write-Host "  Size:              $apkMb MB" -ForegroundColor White
+    Write-Host "  Updated:           $($apkInfo.LastWriteTime)" -ForegroundColor White
     Write-Host "==========================================================" -ForegroundColor Green
 } else {
-    throw "APK output not found at $apkSource"
+    throw "Release APK output not found at $apkSource"
 }
