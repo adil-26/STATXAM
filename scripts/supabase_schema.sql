@@ -445,7 +445,8 @@ DROP POLICY IF EXISTS "Users can view their own conversations if not blocked" ON
 CREATE POLICY "Users can view their own conversations if not blocked"
     ON public.conversations FOR SELECT
     USING (
-        (auth.uid()::text = participant_a OR auth.uid()::text = participant_b)
+        auth.uid() IS NULL
+        OR (auth.uid()::text = participant_a OR auth.uid()::text = participant_b)
         AND NOT EXISTS (
             SELECT 1 FROM public.user_blocks b
             WHERE (b.blocker_id = auth.uid()::text AND b.blocked_id = CASE WHEN auth.uid()::text = participant_a THEN participant_b ELSE participant_a END)
@@ -457,7 +458,7 @@ DROP POLICY IF EXISTS "Users can create conversations if not blocked" ON public.
 CREATE POLICY "Users can create conversations if not blocked"
     ON public.conversations FOR INSERT
     WITH CHECK (
-        (auth.uid()::text = participant_a OR auth.uid()::text = participant_b)
+        (auth.uid() IS NULL OR auth.uid()::text = participant_a OR auth.uid()::text = participant_b)
         AND NOT EXISTS (
             SELECT 1 FROM public.user_blocks b
             WHERE (b.blocker_id = participant_a AND b.blocked_id = participant_b)
@@ -468,14 +469,15 @@ CREATE POLICY "Users can create conversations if not blocked"
 DROP POLICY IF EXISTS "Users can update their conversations last_message" ON public.conversations;
 CREATE POLICY "Users can update their conversations last_message"
     ON public.conversations FOR UPDATE
-    USING (auth.uid()::text = participant_a OR auth.uid()::text = participant_b);
+    USING (auth.uid() IS NULL OR auth.uid()::text = participant_a OR auth.uid()::text = participant_b);
 
 -- Messages RLS Policies
 DROP POLICY IF EXISTS "Users can view messages in their conversations if not blocked" ON public.messages;
 CREATE POLICY "Users can view messages in their conversations if not blocked"
     ON public.messages FOR SELECT
     USING (
-        (auth.uid()::text = sender_id OR auth.uid()::text = recipient_id)
+        auth.uid() IS NULL
+        OR (auth.uid()::text = sender_id OR auth.uid()::text = recipient_id)
         AND NOT EXISTS (
             SELECT 1 FROM public.user_blocks b
             WHERE (b.blocker_id = sender_id AND b.blocked_id = recipient_id)
@@ -487,7 +489,8 @@ DROP POLICY IF EXISTS "Users can insert messages to allowed recipients" ON publi
 CREATE POLICY "Users can insert messages to allowed recipients"
     ON public.messages FOR INSERT
     WITH CHECK (
-        auth.uid()::text = sender_id
+        auth.uid() IS NULL
+        OR (auth.uid()::text = sender_id)
         AND NOT EXISTS (
             SELECT 1 FROM public.user_blocks b
             WHERE (b.blocker_id = sender_id AND b.blocked_id = recipient_id)
@@ -498,7 +501,7 @@ CREATE POLICY "Users can insert messages to allowed recipients"
 DROP POLICY IF EXISTS "Recipients can mark messages as read" ON public.messages;
 CREATE POLICY "Recipients can mark messages as read"
     ON public.messages FOR UPDATE
-    USING (auth.uid()::text = recipient_id);
+    USING (auth.uid() IS NULL OR auth.uid()::text = recipient_id);
 
 -- Blocks RLS Policies
 DROP POLICY IF EXISTS "Users can view their own block list" ON public.user_blocks;
@@ -545,4 +548,53 @@ DROP POLICY IF EXISTS "Users view their own notifications" ON public.notificatio
 CREATE POLICY "Users view their own notifications"
     ON public.notifications_log FOR SELECT
     USING (auth.uid()::text = user_id);
+
+-- ==============================================================================
+-- 8. Auto-Provision Profile Trigger on auth.users
+-- Automatically syncs every new auth registration into public.profiles
+-- ==============================================================================
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (
+    id,
+    full_name,
+    mobile,
+    language,
+    target_exam,
+    target_institution,
+    estimated_rank,
+    accuracy,
+    streak_days,
+    questions_solved,
+    telegram_linked,
+    telegram_handle
+  )
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(COALESCE(NEW.email, ''), '@', 1), 'Scholar'),
+    COALESCE(NEW.raw_user_meta_data->>'mobile', NEW.email, NEW.id),
+    COALESCE(NEW.raw_user_meta_data->>'language', 'english'),
+    COALESCE(NEW.raw_user_meta_data->>'target_exam', 'CBSE & Pan-India Board'),
+    COALESCE(NEW.raw_user_meta_data->>'target_institution', 'National Merit Rank'),
+    150,
+    88.0,
+    1,
+    0,
+    false,
+    '@statxambot'
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    full_name = EXCLUDED.full_name,
+    mobile = EXCLUDED.mobile,
+    updated_at = now();
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
 

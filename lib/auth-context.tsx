@@ -98,6 +98,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               telegramHandle: '@statxambot',
             };
             setUser(fallbackProfile);
+
+            // Auto-provision profile in public.profiles to satisfy foreign key constraints
+            Promise.resolve(
+              supabase.from('profiles').upsert({
+                id: currentSbUser.id,
+                full_name: fallbackProfile.fullName,
+                mobile: fallbackProfile.mobile,
+                language: fallbackProfile.language,
+                target_exam: fallbackProfile.targetExam,
+                target_institution: fallbackProfile.targetInstitution,
+                estimated_rank: 150,
+                accuracy: 88.0,
+                streak_days: 1,
+                questions_solved: 0,
+                telegram_linked: false,
+                telegram_handle: '@statxambot',
+              }, { onConflict: 'id' })
+            ).catch(() => {});
             localStorage.setItem('statxam_pilot_session', JSON.stringify(fallbackProfile));
             return;
           }

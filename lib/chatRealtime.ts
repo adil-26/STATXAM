@@ -267,6 +267,11 @@ export async function getOrCreateConversation(
         return { success: true, conversation: json.conversation };
       }
       return { success: false, error: json.error || 'Could not open conversation' };
+    } else {
+      const errJson = await res.json().catch(() => ({}));
+      if (errJson?.error) {
+        return { success: false, error: errJson.error };
+      }
     }
   } catch (err) {
     console.warn('[ChatRealtime] API conversation lookup failed, trying direct Supabase:', err);

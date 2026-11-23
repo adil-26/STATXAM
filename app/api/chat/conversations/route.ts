@@ -131,7 +131,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Cannot message this user due to privacy/blocking settings.' }, { status: 403 });
     }
 
-    // 2. Check if conversation already exists
+    // 2. Ensure both participants have profile records in public.profiles to satisfy foreign key constraints
+    const ensureProfileExists = async (pid: string) => {
+      const { data: prof } = await supabaseAdmin.from('profiles').select('id').eq('id', pid).maybeSingle();
+      if (!prof) {
+        let email = '';
+        let fullName = 'Scholar';
+        try {
+          const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(pid);
+          if (authUser?.user) {
+            email = authUser.user.email || '';
+            fullName = authUser.user.user_metadata?.full_name || email.split('@')[0] || 'Scholar';
+          }
+        } catch {
+          // ignore
+        }
+        await supabaseAdmin.from('profiles').upsert({
+          id: pid,
+          full_name: fullName,
+          mobile: email || pid,
+          language: 'english',
+          target_exam: 'CBSE & Pan-India Board',
+          target_institution: 'National Merit Rank',
+          estimated_rank: 150,
+          accuracy: 88.0,
+          streak_days: 1,
+          questions_solved: 0,
+          telegram_linked: false,
+          telegram_handle: '@statxambot',
+        }, { onConflict: 'id' });
+      }
+    };
+
+    await Promise.all([ensureProfileExists(userId), ensureProfileExists(targetUserId)]);
+
+    // 3. Check if conversation already exists
     const { data: existing } = await supabaseAdmin
       .from('conversations')
       .select('*')
