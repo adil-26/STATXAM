@@ -74,8 +74,16 @@ export async function triggerHaptic(style: 'light' | 'medium' | 'heavy' | 'succe
         const impact = style === 'heavy' ? ImpactStyle.Heavy : style === 'medium' ? ImpactStyle.Medium : ImpactStyle.Light;
         await Haptics.impact({ style: impact });
       }
-    } else if (typeof navigator !== 'undefined' && navigator.vibrate) {
-      navigator.vibrate(style === 'success' ? [30, 40, 30] : style === 'error' ? [50, 50, 50] : 15);
+    } else if (
+      typeof navigator !== 'undefined' &&
+      typeof navigator.vibrate === 'function' &&
+      (navigator as any).userActivation?.hasBeenActive
+    ) {
+      try {
+        navigator.vibrate(style === 'success' ? [30, 40, 30] : style === 'error' ? [50, 50, 50] : 15);
+      } catch {
+        // Suppress browser vibration security interventions
+      }
     }
   } catch {
     // Graceful no-op

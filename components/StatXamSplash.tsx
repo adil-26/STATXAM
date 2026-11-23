@@ -41,10 +41,14 @@ export function StatXamSplash({ onFinish }: { onFinish?: () => void }) {
       return;
     }
 
-    // Subtle tactile response as the vector draws
-    triggerHaptic('light');
+    // Subtle tactile response as the vector draws (native mobile only to prevent browser interventions)
+    if (isNative()) {
+      triggerHaptic('light');
+    }
     const hapticTimer = setTimeout(() => {
-      triggerHaptic('medium');
+      if (isNative()) {
+        triggerHaptic('medium');
+      }
     }, 450);
 
     // Dismiss native Capacitor Android splash seamlessly into SVG canvas
@@ -58,7 +62,9 @@ export function StatXamSplash({ onFinish }: { onFinish?: () => void }) {
 
     const handleReplay = () => {
       setPhase('active');
-      triggerHaptic('medium');
+      if (isNative()) {
+        triggerHaptic('medium');
+      }
       setTimeout(() => setPhase('fading'), 1400);
       setTimeout(() => setPhase('done'), 1850);
     };

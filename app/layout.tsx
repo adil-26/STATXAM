@@ -18,6 +18,14 @@ export const metadata: Metadata = {
   description:
     'Comprehensive archive of PSEB, CBSE, and Competitive exam papers with verified marking schemes, AI doubt solver, and CBT test simulator.',
   manifest: '/manifest.json',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/icon.png', sizes: '192x192', type: 'image/png' },
+    ],
+    shortcut: '/icon.svg',
+    apple: '/icon.png',
+  },
 };
 
 export default function RootLayout({

@@ -50,7 +50,7 @@ try {
 if (-not (Test-Path "$rootDir\out\index.html")) {
     throw "Static export missing out\index.html!"
 }
-Write-Host "✓ Static export generated cleanly in out/" -ForegroundColor Green
+Write-Host "[SUCCESS] Static export generated cleanly in out/" -ForegroundColor Green
 
 # 4. Sync assets to Capacitor Android
 Write-Host "[4/6] Syncing static web assets to Capacitor Android..." -ForegroundColor Yellow
@@ -91,7 +91,7 @@ if (Test-Path $apkSource) {
 
     Write-Host ""
     Write-Host "==========================================================" -ForegroundColor Green
-    Write-Host "✓ Signed Production Release APK compiled successfully!" -ForegroundColor Green
+    Write-Host "[SUCCESS] Signed Production Release APK compiled successfully!" -ForegroundColor Green
     Write-Host "  Store Upload File: $apkVersionedDest" -ForegroundColor White
     Write-Host "  Mirror File:       $apkDest" -ForegroundColor White
     Write-Host "  Build Variant:     release (debuggable=false)" -ForegroundColor White

@@ -12,8 +12,14 @@ export default function AppHeader() {
   const { user } = useAuth();
   const [showNotifications, setShowNotifications] = useState(false);
 
-  // Strictly decouple Admin Platform and Auth screens from student app header
-  if (pathname.startsWith('/admin') || pathname.startsWith('/auth')) {
+  // Strictly decouple Admin Platform, Auth screens, and Legal documents from student app header
+  if (
+    !pathname ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/privacy') ||
+    pathname.startsWith('/terms')
+  ) {
     return null;
   }
 
@@ -36,7 +42,7 @@ export default function AppHeader() {
 
   return (
     <header className="fixed top-0 inset-x-0 z-50 bg-[#faf5ee]/95 backdrop-blur-xl border-b border-[#e8dccb] shadow-[0_1px_12px_rgba(43,33,24,0.04)] pt-safe">
-      <div className="max-w-7xl mx-auto h-14 sm:h-16 px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-1.5 sm:gap-4">
+      <div className="max-w-7xl mx-auto h-14 sm:h-16 px-2.5 sm:px-6 lg:px-8 flex items-center justify-between gap-1 sm:gap-4">
         {/* Left: Brand Mark */}
         <Link href="/" className="flex items-center gap-1.5 sm:gap-2 group shrink-0">
           <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#c2652a]/10 border border-[#c2652a]/20 flex items-center justify-center text-[#c2652a] group-hover:scale-105 transition-transform shadow-2xs">
@@ -44,7 +50,7 @@ export default function AppHeader() {
               menu_book
             </span>
           </div>
-          <span className="font-headline text-lg sm:text-2xl font-black tracking-tight text-[#2b2118]">
+          <span className="font-headline text-base sm:text-2xl font-black tracking-tight text-[#2b2118]">
             StatXam
           </span>
         </Link>
@@ -55,12 +61,12 @@ export default function AppHeader() {
         </div>
 
         {/* Right Tools: Coins + Notifications + Profile/Auth CTA */}
-        <div className="flex items-center gap-1.5 sm:gap-2 relative shrink-0">
-          {/* Scholar Coins Badge */}
+        <div className="flex items-center gap-1 sm:gap-2 relative shrink-0">
+          {/* Scholar Coins Badge (only on desktop/tablet to preserve mobile header space) */}
           {user && (
             <Link
               href="/profile"
-              className="hidden xs:flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-900 font-mono text-xs font-bold transition-all active:scale-95"
+              className="hidden md:flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-900 font-mono text-xs font-bold transition-all active:scale-95"
               title="StatXam Coins"
             >
               <span className="material-symbols-outlined text-[15px] text-amber-600">

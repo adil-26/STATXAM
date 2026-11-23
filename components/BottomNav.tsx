@@ -19,8 +19,15 @@ export default function BottomNav() {
     return () => window.removeEventListener('statxam_modal_state', handleModalState);
   }, []);
 
-  // Hide on admin routes, auth screens, or when any modal/challenge/test is active
-  if (modalOpen || pathname.startsWith('/admin') || pathname.startsWith('/auth')) {
+  // Hide on admin routes, auth screens, legal documents, or when any modal/challenge/test is active
+  if (
+    modalOpen ||
+    !pathname ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/auth') ||
+    pathname.startsWith('/privacy') ||
+    pathname.startsWith('/terms')
+  ) {
     return null;
   }
 
