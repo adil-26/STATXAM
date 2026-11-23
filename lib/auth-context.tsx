@@ -29,12 +29,27 @@ const AuthContext = createContext<AuthContextType>({
   refreshProfile: async () => { },
 });
 
+// In-flight request deduplication guard & 3-minute freshness cache across components
+let profileFetchPromise: Promise<any> | null = null;
+let lastProfileFetchTime = 0;
+let lastProfileFetchUserId = '';
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<PilotProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Client-side fetchMe gate (Runs inside native APK shell on mount)
   useEffect(() => {
+    // 1. Synchronously pre-hydrate from local storage if available (<10ms UI display)
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('statxam_pilot_session') : null;
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as PilotProfile;
+        setUser(parsed);
+        setLoading(false);
+      } catch {}
+    }
+
     async function fetchMe() {
       try {
         // 1. Check for active Supabase session
@@ -42,83 +57,118 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const currentSbUser = sessionData?.session?.user;
 
         // 2. Check stored local session
-        const stored = typeof window !== 'undefined' ? localStorage.getItem('statxam_pilot_session') : null;
-        const targetUserId = currentSbUser?.id || (stored ? (JSON.parse(stored) as PilotProfile).id : null);
+        const currentStored = typeof window !== 'undefined' ? localStorage.getItem('statxam_pilot_session') : null;
+        const targetUserId = currentSbUser?.id || (currentStored ? (JSON.parse(currentStored) as PilotProfile).id : null);
 
-        if (targetUserId) {
-          try {
-            const { data } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', targetUserId)
-              .maybeSingle();
+        if (!targetUserId) {
+          setUser(null);
+          setLoading(false);
+          hideAppSplash();
+          return;
+        }
 
-            if (data) {
-              const liveProfile: PilotProfile = {
-                id: data.id,
-                fullName: data.full_name,
-                mobile: data.mobile,
-                language: (data.language as any) || 'english',
-                targetExam: data.target_exam || 'CBSE & Pan-India Board',
-                targetInstitution: data.target_institution || 'National Merit Rank',
-                estimatedRank: data.estimated_rank || 150,
-                accuracy: Number(data.accuracy) || 88.0,
-                streakDays: data.streak_days || 1,
-                questionsSolved: data.questions_solved || 0,
-                coins: (stored ? (JSON.parse(stored) as PilotProfile).coins : null) ?? 250,
-                telegramLinked: Boolean(data.telegram_linked),
-                telegramHandle: data.telegram_handle || '@statxambot',
-              };
-              setUser(liveProfile);
-              localStorage.setItem('statxam_pilot_session', JSON.stringify(liveProfile));
-              return;
+        // Deduplicate: If already fetched within 3 minutes for this user, do not refetch
+        const now = Date.now();
+        if (
+          user &&
+          user.id === targetUserId &&
+          lastProfileFetchUserId === targetUserId &&
+          now - lastProfileFetchTime < 180000
+        ) {
+          setLoading(false);
+          hideAppSplash();
+          return;
+        }
+
+        // Single in-flight promise guard across all mounting components (never 8x queries)
+        if (!profileFetchPromise || lastProfileFetchUserId !== targetUserId) {
+          lastProfileFetchUserId = targetUserId;
+          profileFetchPromise = (async () => {
+            try {
+              const { data } = await supabase
+                .from('profiles')
+                .select('id, username, full_name, mobile, language, target_exam, target_institution, estimated_rank, accuracy, streak_days, questions_solved, telegram_linked, telegram_handle, last_seen_at')
+                .eq('id', targetUserId)
+                .maybeSingle();
+              lastProfileFetchTime = Date.now();
+              return data;
+            } catch (err) {
+              console.warn('[AuthContext] Profile fetch error:', err);
+              return null;
+            } finally {
+              profileFetchPromise = null;
             }
-          } catch {
-            // offline, keep cached parsed
-          }
+          })();
+        }
 
-          if (stored) {
-            setUser(JSON.parse(stored) as PilotProfile);
-            return;
-          } else if (currentSbUser) {
-            const meta = currentSbUser.user_metadata || {};
-            const fallbackProfile: PilotProfile = {
+        const data = await profileFetchPromise;
+
+        if (data) {
+          const liveProfile: PilotProfile = {
+            id: data.id,
+            username: data.username || `scholar_${data.id.slice(0, 4)}`,
+            fullName: data.full_name,
+            mobile: data.mobile,
+            language: (data.language as any) || 'english',
+            targetExam: data.target_exam || 'CBSE & Pan-India Board',
+            targetInstitution: data.target_institution || 'National Merit Rank',
+            estimatedRank: data.estimated_rank || 150,
+            accuracy: Number(data.accuracy) || 88.0,
+            streakDays: data.streak_days || 1,
+            questionsSolved: data.questions_solved || 0,
+            coins: (currentStored ? (JSON.parse(currentStored) as PilotProfile).coins : null) ?? 250,
+            telegramLinked: Boolean(data.telegram_linked),
+            telegramHandle: data.telegram_handle || '@statxambot',
+            last_seen_at: data.last_seen_at,
+          };
+          setUser(liveProfile);
+          localStorage.setItem('statxam_pilot_session', JSON.stringify(liveProfile));
+          return;
+        }
+
+        if (currentStored) {
+          setUser(JSON.parse(currentStored) as PilotProfile);
+          return;
+        } else if (currentSbUser) {
+          const meta = currentSbUser.user_metadata || {};
+          const fallbackProfile: PilotProfile = {
+            id: currentSbUser.id,
+            username: meta.username || `scholar_${currentSbUser.id.slice(0, 4)}`,
+            fullName: meta.full_name || currentSbUser.email?.split('@')[0] || 'Scholar',
+            mobile: meta.mobile || currentSbUser.email || '',
+            language: meta.language || 'english',
+            targetExam: meta.target_exam || 'CBSE & Pan-India Board',
+            targetInstitution: meta.target_institution || 'National Merit Rank',
+            estimatedRank: 150,
+            accuracy: 88.0,
+            streakDays: 1,
+            questionsSolved: 0,
+            coins: 250,
+            telegramLinked: false,
+            telegramHandle: '@statxambot',
+          };
+          setUser(fallbackProfile);
+
+          // Auto-provision profile in public.profiles to satisfy foreign key constraints
+          Promise.resolve(
+            supabase.from('profiles').upsert({
               id: currentSbUser.id,
-              fullName: meta.full_name || currentSbUser.email?.split('@')[0] || 'Scholar',
-              mobile: meta.mobile || currentSbUser.email || '',
-              language: meta.language || 'english',
-              targetExam: meta.target_exam || 'CBSE & Pan-India Board',
-              targetInstitution: meta.target_institution || 'National Merit Rank',
-              estimatedRank: 150,
+              username: fallbackProfile.username,
+              full_name: fallbackProfile.fullName,
+              mobile: fallbackProfile.mobile,
+              language: fallbackProfile.language,
+              target_exam: fallbackProfile.targetExam,
+              target_institution: fallbackProfile.targetInstitution,
+              estimated_rank: 150,
               accuracy: 88.0,
-              streakDays: 1,
-              questionsSolved: 0,
-              coins: 250,
-              telegramLinked: false,
-              telegramHandle: '@statxambot',
-            };
-            setUser(fallbackProfile);
-
-            // Auto-provision profile in public.profiles to satisfy foreign key constraints
-            Promise.resolve(
-              supabase.from('profiles').upsert({
-                id: currentSbUser.id,
-                full_name: fallbackProfile.fullName,
-                mobile: fallbackProfile.mobile,
-                language: fallbackProfile.language,
-                target_exam: fallbackProfile.targetExam,
-                target_institution: fallbackProfile.targetInstitution,
-                estimated_rank: 150,
-                accuracy: 88.0,
-                streak_days: 1,
-                questions_solved: 0,
-                telegram_linked: false,
-                telegram_handle: '@statxambot',
-              }, { onConflict: 'id' })
-            ).catch(() => {});
-            localStorage.setItem('statxam_pilot_session', JSON.stringify(fallbackProfile));
-            return;
-          }
+              streak_days: 1,
+              questions_solved: 0,
+              telegram_linked: false,
+              telegram_handle: '@statxambot',
+            }, { onConflict: 'id' })
+          ).catch(() => {});
+          localStorage.setItem('statxam_pilot_session', JSON.stringify(fallbackProfile));
+          return;
         }
 
         // First time install or signed out: Start with NO user so scholar lands on Sign Up / Setup!
@@ -139,24 +189,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, username, full_name, mobile, language, target_exam, target_institution, estimated_rank, accuracy, streak_days, questions_solved, telegram_linked, telegram_handle, last_seen_at')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
 
       if (data) {
+        lastProfileFetchTime = Date.now();
         const liveProfile: PilotProfile = {
           id: data.id,
+          username: data.username || user.username || `scholar_${data.id.slice(0, 4)}`,
           fullName: data.full_name,
           mobile: data.mobile,
-          targetExam: data.target_exam,
-          targetInstitution: data.target_institution,
-          estimatedRank: data.estimated_rank,
-          accuracy: Number(data.accuracy),
-          streakDays: data.streak_days,
-          questionsSolved: data.questions_solved,
+          language: (data.language as any) || user.language || 'english',
+          targetExam: data.target_exam || user.targetExam,
+          targetInstitution: data.target_institution || user.targetInstitution,
+          estimatedRank: data.estimated_rank || user.estimatedRank,
+          accuracy: Number(data.accuracy) || user.accuracy,
+          streakDays: data.streak_days || user.streakDays,
+          questionsSolved: data.questions_solved || user.questionsSolved,
           coins: user.coins ?? 250,
           telegramLinked: data.telegram_linked,
           telegramHandle: data.telegram_handle,
+          last_seen_at: data.last_seen_at,
         };
         setUser(liveProfile);
         localStorage.setItem('statxam_pilot_session', JSON.stringify(liveProfile));
@@ -208,6 +262,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const meta = authData.user.user_metadata || {};
           const clientUser: PilotProfile = {
             id: userId,
+            username: dbProfile?.username || meta.username || `scholar_${userId.slice(0, 4)}`,
             fullName: dbProfile?.full_name || meta.full_name || authData.user.email?.split('@')[0] || 'Scholar',
             mobile: dbProfile?.mobile || meta.mobile || authData.user.email || identity.trim(),
             language: dbProfile?.language || meta.language || 'english',

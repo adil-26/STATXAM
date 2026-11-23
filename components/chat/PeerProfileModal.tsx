@@ -81,10 +81,15 @@ export function PeerProfileModal({
                 </h3>
                 <span className="material-symbols-outlined text-[16px] text-[#c2652a]">verified</span>
               </div>
-              <p className="text-xs text-[#6e5a49]">
-                {peerUser.targetExam || 'National Board Exam'}
-              </p>
-              <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-xs font-mono font-bold text-[#c2652a] bg-[#c2652a]/10 px-2 py-0.5 rounded-md border border-[#c2652a]/20">
+                  @{peerUser.username || 'scholar'}
+                </span>
+                <span className="text-xs text-[#6e5a49]">
+                  {peerUser.targetExam || 'National Board Exam'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-1">
                 <span
                   className={`w-2 h-2 rounded-full ${
                     isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'

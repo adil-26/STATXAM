@@ -9,10 +9,11 @@ import { clearOfflineCache } from '@/lib/supabase-service';
 import { ContributePaperModal } from '@/components/ContributePaperModal';
 import { getStudentCoins, getPaperContributions, PaperContribution } from '@/lib/contributions-service';
 import { ScholarNote } from '@/lib/types';
+import { supabase } from '@/lib/supabase';
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, loading, logout, requestTelegramOtp } = useAuth();
+  const { user, loading, logout, requestTelegramOtp, refreshProfile } = useAuth();
 
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [cacheSize, setCacheSize] = useState('12.4 MB');
@@ -33,6 +34,72 @@ export default function ProfilePage() {
   const [newNoteTitle, setNewNoteTitle] = useState('');
   const [newNoteSubject, setNewNoteSubject] = useState('Mathematics');
   const [newNoteContent, setNewNoteContent] = useState('');
+
+  // Unique @handle State & Modals
+  const [showEditHandleModal, setShowEditHandleModal] = useState(false);
+  const [newHandle, setNewHandle] = useState('');
+  const [handleError, setHandleError] = useState<string | null>(null);
+  const [savingHandle, setSavingHandle] = useState(false);
+
+  const handleCopyHandle = () => {
+    triggerHaptic('light');
+    const h = user?.username ? `@${user.username}` : `@scholar_${user?.id.slice(0, 4)}`;
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(h);
+    }
+    showToast(`Handle ${h} copied! Share with friends to connect on StatXam.`);
+  };
+
+  const handleSaveHandle = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    const clean = newHandle.trim().toLowerCase().replace(/^@/, '');
+
+    if (!/^[a-z0-9_]{3,20}$/.test(clean)) {
+      setHandleError('Handle must be 3-20 characters using only lowercase letters, numbers, and underscores.');
+      return;
+    }
+
+    setSavingHandle(true);
+    setHandleError(null);
+
+    try {
+      const { data: existing } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('username', clean)
+        .neq('id', user.id)
+        .maybeSingle();
+
+      if (existing) {
+        setHandleError(`@${clean} is already claimed by another scholar. Try a different variation.`);
+        setSavingHandle(false);
+        return;
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({ username: clean })
+        .eq('id', user.id);
+
+      if (error) {
+        setHandleError(error.message || 'Failed to update handle.');
+        setSavingHandle(false);
+        return;
+      }
+
+      triggerHaptic('success');
+      const updatedUser = { ...user, username: clean };
+      localStorage.setItem('statxam_pilot_session', JSON.stringify(updatedUser));
+      setShowEditHandleModal(false);
+      showToast(`Handle updated to @${clean}!`);
+      await refreshProfile();
+    } catch (err: any) {
+      setHandleError(err?.message || 'Network error updating handle.');
+    } finally {
+      setSavingHandle(false);
+    }
+  };
 
   useEffect(() => {
     if (!loading && !user) {
@@ -280,10 +347,42 @@ export default function ProfilePage() {
               </div>
 
               <div className="flex flex-col min-w-0 flex-1">
-                <h2 className="font-headline text-xl font-bold text-on-surface truncate">
-                  {user.fullName}
-                </h2>
-                <div className="flex items-center gap-1.5 mt-0.5 text-xs text-primary font-label font-semibold">
+                <div className="flex items-center justify-between gap-1">
+                  <h2 className="font-headline text-xl font-bold text-on-surface truncate">
+                    {user.fullName}
+                  </h2>
+                </div>
+
+                {/* Unique Instagram-Style @Handle */}
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20">
+                    @{user.username || `scholar_${user.id.slice(0, 4)}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleCopyHandle}
+                    title="Copy StatXam Handle"
+                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-[13px]">content_copy</span>
+                    <span>Copy</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNewHandle(user.username || `scholar_${user.id.slice(0, 4)}`);
+                      setHandleError(null);
+                      setShowEditHandleModal(true);
+                    }}
+                    title="Edit Handle"
+                    className="inline-flex items-center gap-0.5 text-[11px] font-semibold text-on-surface-variant hover:text-primary transition-colors ml-1"
+                  >
+                    <span className="material-symbols-outlined text-[13px]">edit</span>
+                    <span>Edit</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-1.5 mt-2 text-xs text-primary font-label font-semibold">
                   <span className="material-symbols-outlined text-[14px]">flag</span>
                   <span className="truncate">{user.targetExam || 'National Board Exam'}</span>
                 </div>
@@ -906,6 +1005,80 @@ export default function ProfilePage() {
                   className="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold uppercase tracking-wider hover:bg-primary/90 shadow-xs active:scale-95 transition-all"
                 >
                   Save Note
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Handle Modal */}
+      {showEditHandleModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-sm bg-white rounded-3xl border border-[#e8dccb] p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-primary text-[22px]">alternate_email</span>
+                <h3 className="font-headline text-lg font-bold text-on-surface">Edit Handle</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEditHandleModal(false)}
+                className="w-7 h-7 rounded-full bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-container-high"
+              >
+                <span className="material-symbols-outlined text-[16px]">close</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveHandle} className="space-y-3.5">
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant block mb-1">
+                  Unique StatXam @handle
+                </label>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-primary font-mono font-bold text-sm">@</span>
+                  <input
+                    type="text"
+                    required
+                    value={newHandle.replace(/^@/, '')}
+                    onChange={(e) => {
+                      setNewHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''));
+                      setHandleError(null);
+                    }}
+                    placeholder="your_handle"
+                    maxLength={20}
+                    className="w-full pl-8 pr-3.5 py-2.5 rounded-xl bg-surface-container-lowest border border-outline-variant/60 text-xs font-mono font-bold text-on-surface focus:outline-none focus:border-primary"
+                  />
+                </div>
+                <p className="text-[10px] text-on-surface-variant mt-1.5 leading-tight">
+                  3–20 characters. Lowercase letters, numbers, and underscores only. This is how peers find and message you.
+                </p>
+                {handleError && (
+                  <p className="text-[11px] text-error font-semibold mt-1.5 flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[13px]">error</span>
+                    <span>{handleError}</span>
+                  </p>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditHandleModal(false)}
+                  className="px-4 py-2 rounded-xl border border-outline-variant/60 text-xs font-bold text-on-surface-variant hover:bg-surface-container"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingHandle}
+                  className="px-5 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold uppercase tracking-wider hover:bg-primary/90 shadow-xs active:scale-95 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {savingHandle ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <span>Save Handle</span>
+                  )}
                 </button>
               </div>
             </form>

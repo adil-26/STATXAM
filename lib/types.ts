@@ -112,6 +112,7 @@ export interface GradedScorecard {
 export interface PilotProfile {
   id: string;
   fullName: string;
+  username?: string;
   mobile: string;
   email?: string;
   language?: LanguageMedium;

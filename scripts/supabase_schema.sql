@@ -555,10 +555,20 @@ CREATE POLICY "Users view their own notifications"
 -- ==============================================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
+DECLARE
+  base_uname TEXT;
+  final_uname TEXT;
 BEGIN
+  base_uname := LOWER(REGEXP_REPLACE(COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(COALESCE(NEW.email, ''), '@', 1), 'scholar'), '[^a-z0-9]', '_', 'g'));
+  IF length(base_uname) < 3 THEN
+    base_uname := 'scholar';
+  END IF;
+  final_uname := SUBSTRING(base_uname FROM 1 FOR 14) || '_' || SUBSTRING(MD5(NEW.id) FROM 1 FOR 4);
+
   INSERT INTO public.profiles (
     id,
     full_name,
+    username,
     mobile,
     language,
     target_exam,
@@ -573,6 +583,7 @@ BEGIN
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(COALESCE(NEW.email, ''), '@', 1), 'Scholar'),
+    COALESCE(NEW.raw_user_meta_data->>'username', final_uname),
     COALESCE(NEW.raw_user_meta_data->>'mobile', NEW.email, NEW.id),
     COALESCE(NEW.raw_user_meta_data->>'language', 'english'),
     COALESCE(NEW.raw_user_meta_data->>'target_exam', 'CBSE & Pan-India Board'),
@@ -586,6 +597,7 @@ BEGIN
   )
   ON CONFLICT (id) DO UPDATE SET
     full_name = EXCLUDED.full_name,
+    username = COALESCE(public.profiles.username, EXCLUDED.username),
     mobile = EXCLUDED.mobile,
     updated_at = now();
 
@@ -597,4 +609,38 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
+
+-- ==============================================================================
+-- 9. Instagram-Style Unique @username System & Chat Composite Indexes
+-- ==============================================================================
+
+-- 9.1 Add username handle column to public.profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS username text;
+
+-- 9.2 Backfill existing profiles with clean unique handle derived from full_name + random suffix
+UPDATE public.profiles
+SET username = LOWER(
+  REGEXP_REPLACE(
+    CONCAT(
+      COALESCE(NULLIF(REGEXP_REPLACE(LOWER(full_name), '[^a-z0-9]', '_', 'g'), ''), 'scholar'),
+      '_',
+      SUBSTRING(MD5(id) FROM 1 FOR 4)
+    ),
+    '_+', '_', 'g'
+  )
+)
+WHERE username IS NULL OR username = '';
+
+-- 9.3 Ensure unique case-insensitive index on LOWER(username)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_profiles_username_unique ON public.profiles (LOWER(username));
+
+-- 9.4 Text pattern indexes for fast Instagram-style debounced substring/prefix search
+CREATE INDEX IF NOT EXISTS idx_profiles_username_pattern ON public.profiles (LOWER(username) text_pattern_ops);
+CREATE INDEX IF NOT EXISTS idx_profiles_fullname_pattern ON public.profiles (LOWER(full_name) text_pattern_ops);
+
+-- 9.5 Composite indexes for instant (<100ms) inbox & message timeline loading
+CREATE INDEX IF NOT EXISTS idx_messages_conv_created ON public.messages (conversation_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_participants ON public.conversations (participant_a, participant_b, last_message_at DESC);
+CREATE INDEX IF NOT EXISTS idx_conversations_participant_b ON public.conversations (participant_b, participant_a, last_message_at DESC);
+
 

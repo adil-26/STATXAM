@@ -25,11 +25,12 @@ export function ChatInbox({
 
   const filtered = conversations.filter((c) => {
     if (!search.trim()) return true;
-    const q = search.toLowerCase();
+    const q = search.toLowerCase().replace(/^@/, '');
+    const uname = c.otherUser?.username?.toLowerCase() || '';
     const name = c.otherUser?.fullName?.toLowerCase() || '';
     const exam = c.otherUser?.targetExam?.toLowerCase() || '';
     const preview = c.last_message_preview?.toLowerCase() || '';
-    return name.includes(q) || exam.includes(q) || preview.includes(q);
+    return uname.includes(q) || name.includes(q) || exam.includes(q) || preview.includes(q);
   });
 
   const formatTime = (isoString: string) => {
@@ -64,12 +65,12 @@ export function ChatInbox({
           }}
           className="px-3.5 py-2 rounded-xl bg-[#c2652a] hover:bg-[#a8521e] text-white text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-all active:scale-95"
         >
-          <span className="material-symbols-outlined text-[18px]">add</span>
-          <span>New Discussion</span>
+          <span className="material-symbols-outlined text-[18px]">person_add</span>
+          <span>Find Scholar</span>
         </button>
       </div>
 
-      {/* Search Bar */}
+      {/* Instagram-Style Quick Search Bar */}
       <div className="p-3 border-b border-[#e8dccb] bg-[#faf5ee]">
         <div className="relative flex items-center">
           <span className="material-symbols-outlined absolute left-3.5 text-[#6e5a49]/60 text-lg">
@@ -79,7 +80,7 @@ export function ChatInbox({
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search discussions or peer scholars..."
+            placeholder="Filter discussions by @username or name..."
             className="w-full bg-white rounded-xl pl-10 pr-4 py-2 text-xs text-[#2b2118] border border-[#e8dccb] focus:outline-none focus:border-[#c2652a] shadow-xs"
           />
         </div>
@@ -95,21 +96,25 @@ export function ChatInbox({
             <div className="space-y-1">
               <h3 className="font-serif text-base font-bold text-[#2b2118]">No Active Discussions</h3>
               <p className="text-xs text-[#6e5a49] max-w-xs mx-auto leading-relaxed">
-                Connect with peer scholars preparing for your board exam to share questions and insights.
+                Connect with peer scholars preparing for your board exam using unique <strong className="text-[#c2652a]">@handles</strong>.
               </p>
             </div>
             <button
-              onClick={() => setShowNewModal(true)}
-              className="px-4 py-2 rounded-xl bg-[#c2652a] text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-xs"
+              onClick={() => {
+                triggerHaptic('light');
+                setShowNewModal(true);
+              }}
+              className="px-4 py-2 rounded-xl bg-[#c2652a] text-white text-xs font-semibold inline-flex items-center gap-1.5 shadow-xs hover:bg-[#a8521e] active:scale-95 transition-all"
             >
-              <span className="material-symbols-outlined text-[16px]">person_add</span>
-              <span>Find Study Partner</span>
+              <span className="material-symbols-outlined text-[16px]">search</span>
+              <span>Search Scholars by @Handle</span>
             </button>
           </div>
         ) : (
           filtered.map((conv) => {
             const other = conv.otherUser || {
               id: conv.participant_a === currentUser.id ? conv.participant_b : conv.participant_a,
+              username: `scholar_${(conv.participant_a === currentUser.id ? conv.participant_b : conv.participant_a).slice(0, 4)}`,
               fullName: 'Scholar',
               targetExam: 'Board Exam',
             };
@@ -122,11 +127,10 @@ export function ChatInbox({
                   triggerHaptic('light');
                   onSelectConversation(conv);
                 }}
-                className={`p-3.5 flex items-center gap-3 cursor-pointer transition-colors ${
-                  isSelected
+                className={`p-3.5 flex items-center gap-3 cursor-pointer transition-colors ${isSelected
                     ? 'bg-[#ffffff] border-l-4 border-l-[#c2652a]'
                     : 'hover:bg-[#ffffff]/80 bg-[#faf5ee]'
-                }`}
+                  }`}
               >
                 {/* Avatar */}
                 <div className="w-12 h-12 rounded-full bg-[#c2652a]/15 text-[#c2652a] flex items-center justify-center font-bold text-base shrink-0 border border-[#c2652a]/20">
@@ -136,9 +140,14 @@ export function ChatInbox({
                 {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1 mb-0.5">
-                    <h4 className="font-serif text-sm font-bold text-[#2b2118] truncate">
-                      {other.fullName}
-                    </h4>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <h4 className="font-serif text-sm font-bold text-[#2b2118] truncate">
+                        {other.fullName}
+                      </h4>
+                      <span className="text-[11px] font-mono text-[#c2652a] font-semibold truncate">
+                        @{other.username || 'scholar'}
+                      </span>
+                    </div>
                     <span className="text-[10px] text-[#6e5a49] shrink-0 font-medium">
                       {formatTime(conv.last_message_at)}
                     </span>

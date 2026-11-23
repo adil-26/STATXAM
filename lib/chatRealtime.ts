@@ -4,6 +4,30 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { ChatMessage, Conversation, PilotProfile } from './types';
 import { getApiUrl } from './api-config';
+import {
+  getCachedConversations,
+  setCachedConversations,
+  getCachedMessages,
+  setCachedMessages,
+  appendCachedMessage,
+} from './chatCache';
+
+/**
+ * Resilient fetch wrapper with exponential backoff retry.
+ * Handles transient network resets and QUIC protocol packet timeouts.
+ */
+async function fetchWithRetry(url: string, options?: RequestInit, retries = 1, delayMs = 400): Promise<Response> {
+  try {
+    const res = await fetch(url, options);
+    return res;
+  } catch (err) {
+    if (retries > 0) {
+      await new Promise((r) => setTimeout(r, delayMs));
+      return fetchWithRetry(url, options, retries - 1, delayMs * 1.5);
+    }
+    throw err;
+  }
+}
 
 /**
  * Subscribes to new incoming messages for a specific conversation using Supabase Realtime postgres_changes.
@@ -14,7 +38,7 @@ export function subscribeToConversationMessages(
   onNewMessage: (message: ChatMessage) => void
 ): () => void {
   const channelName = `conversation:${conversationId}`;
-  
+
   const channel: RealtimeChannel = supabase
     .channel(channelName)
     .on(
@@ -27,7 +51,9 @@ export function subscribeToConversationMessages(
       },
       (payload) => {
         if (payload.new) {
-          onNewMessage(payload.new as ChatMessage);
+          const msg = payload.new as ChatMessage;
+          appendCachedMessage(conversationId, msg);
+          onNewMessage(msg);
         }
       }
     )
@@ -40,7 +66,6 @@ export function subscribeToConversationMessages(
 
 /**
  * Realtime Presence & Broadcast channel for typing indicators and online peer awareness.
- * Does not write typing events to Postgres.
  */
 export function createChatPresenceChannel(
   conversationId: string,
@@ -105,17 +130,18 @@ export function createChatPresenceChannel(
 }
 
 /**
- * Fetches all conversations for the current user.
+ * Fetches all conversations for the current user with stale-while-revalidate caching.
  */
 export async function fetchUserConversations(userId: string): Promise<Conversation[]> {
   try {
-    const res = await fetch(getApiUrl(`/api/chat/conversations?userId=${encodeURIComponent(userId)}`), {
+    const res = await fetchWithRetry(getApiUrl(`/api/chat/conversations?userId=${encodeURIComponent(userId)}`), {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.conversations)) {
+        setCachedConversations(userId, json.conversations);
         return json.conversations;
       }
     }
@@ -123,36 +149,42 @@ export async function fetchUserConversations(userId: string): Promise<Conversati
     console.warn('[ChatRealtime] API fetch failed, querying direct Supabase...', err);
   }
 
-  // Direct Supabase fallback
+  // Direct Supabase fallback (minimal columns, no mobile/email)
   try {
     const { data, error } = await supabase
       .from('conversations')
-      .select('*')
+      .select('id, participant_a, participant_b, last_message_at, last_message_preview, created_at')
       .or(`participant_a.eq.${userId},participant_b.eq.${userId}`)
       .order('last_message_at', { ascending: false });
 
     if (!error && data) {
-      return data as Conversation[];
+      const convs = data as Conversation[];
+      setCachedConversations(userId, convs);
+      return convs;
     }
   } catch {
     // offline
   }
 
-  return [];
+  return getCachedConversations(userId) || [];
 }
 
 /**
- * Fetches messages for a given conversation.
+ * Fetches messages for a given conversation with stale-while-revalidate caching.
  */
 export async function fetchConversationMessages(conversationId: string): Promise<ChatMessage[]> {
+  // Check memory/session cache
+  const cached = getCachedMessages(conversationId);
+
   try {
-    const res = await fetch(getApiUrl(`/api/chat/messages?conversationId=${encodeURIComponent(conversationId)}`), {
+    const res = await fetchWithRetry(getApiUrl(`/api/chat/messages?conversationId=${encodeURIComponent(conversationId)}`), {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' },
     });
     if (res.ok) {
       const json = await res.json();
       if (json.success && Array.isArray(json.messages)) {
+        setCachedMessages(conversationId, json.messages);
         return json.messages;
       }
     }
@@ -163,22 +195,26 @@ export async function fetchConversationMessages(conversationId: string): Promise
   try {
     const { data, error } = await supabase
       .from('messages')
-      .select('*')
+      .select('id, conversation_id, sender_id, recipient_id, content, message_type, read_at, created_at')
       .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true })
+      .limit(60);
 
     if (!error && data) {
-      return data as ChatMessage[];
+      const msgs = data as ChatMessage[];
+      setCachedMessages(conversationId, msgs);
+      return msgs;
     }
   } catch {
     // offline
   }
 
-  return [];
+  return cached || [];
 }
 
 /**
  * Sends a message within a conversation.
+ * Synchronously writes to local cache for instant UI feedback.
  */
 export async function sendChatMessage(params: {
   conversationId: string;
@@ -190,7 +226,7 @@ export async function sendChatMessage(params: {
   const { conversationId, senderId, recipientId, content, messageType = 'text' } = params;
 
   try {
-    const res = await fetch(getApiUrl('/api/chat/messages'), {
+    const res = await fetchWithRetry(getApiUrl('/api/chat/messages'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -205,6 +241,7 @@ export async function sendChatMessage(params: {
     if (res.ok) {
       const json = await res.json();
       if (json.success && json.message) {
+        appendCachedMessage(conversationId, json.message);
         return { success: true, message: json.message };
       }
       return { success: false, error: json.error || 'Failed to send message' };
@@ -226,20 +263,25 @@ export async function sendChatMessage(params: {
     const { data, error } = await supabase
       .from('messages')
       .insert(newMessage)
-      .select('*')
+      .select('id, conversation_id, sender_id, recipient_id, content, message_type, read_at, created_at')
       .single();
 
     if (!error && data) {
-      // Update last_message on conversation
-      await supabase
-        .from('conversations')
-        .update({
-          last_message_at: new Date().toISOString(),
-          last_message_preview: content.trim().substring(0, 100),
-        })
-        .eq('id', conversationId);
+      const msg = data as ChatMessage;
+      appendCachedMessage(conversationId, msg);
 
-      return { success: true, message: data as ChatMessage };
+      // Fire-and-forget update conversation last_message
+      Promise.resolve(
+        supabase
+          .from('conversations')
+          .update({
+            last_message_at: new Date().toISOString(),
+            last_message_preview: content.trim().substring(0, 100),
+          })
+          .eq('id', conversationId)
+      ).catch(() => {});
+
+      return { success: true, message: msg };
     }
     return { success: false, error: error?.message || 'Direct Supabase insert failed' };
   } catch (err: any) {
@@ -255,7 +297,7 @@ export async function getOrCreateConversation(
   targetUserId: string
 ): Promise<{ success: boolean; conversation?: Conversation; error?: string }> {
   try {
-    const res = await fetch(getApiUrl('/api/chat/conversations'), {
+    const res = await fetchWithRetry(getApiUrl('/api/chat/conversations'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ userId, targetUserId }),
@@ -277,12 +319,13 @@ export async function getOrCreateConversation(
     console.warn('[ChatRealtime] API conversation lookup failed, trying direct Supabase:', err);
   }
 
-  // Direct Supabase lookup
+  // Direct Supabase lookup (minimal columns)
   try {
     const { data: existing } = await supabase
       .from('conversations')
-      .select('*')
+      .select('id, participant_a, participant_b, last_message_at, last_message_preview, created_at')
       .or(`and(participant_a.eq.${userId},participant_b.eq.${targetUserId}),and(participant_a.eq.${targetUserId},participant_b.eq.${userId})`)
+      .limit(1)
       .maybeSingle();
 
     if (existing) {
@@ -297,7 +340,7 @@ export async function getOrCreateConversation(
         participant_b: targetUserId,
         last_message_preview: 'Conversation started',
       })
-      .select('*')
+      .select('id, participant_a, participant_b, last_message_at, last_message_preview, created_at')
       .single();
 
     if (!error && created) {
@@ -314,7 +357,7 @@ export async function getOrCreateConversation(
  */
 export async function blockUser(blockerId: string, blockedId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await fetch(getApiUrl('/api/chat/block'), {
+    const res = await fetchWithRetry(getApiUrl('/api/chat/block'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ blockerId, blockedId, action: 'block' }),
@@ -348,7 +391,7 @@ export async function reportUserOrMessage(params: {
   reason: string;
 }): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await fetch(getApiUrl('/api/chat/report'), {
+    const res = await fetchWithRetry(getApiUrl('/api/chat/report'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(params),

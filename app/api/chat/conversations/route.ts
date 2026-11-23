@@ -13,10 +13,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 });
     }
 
-    // 1. Fetch conversations where user is a participant
+    // 1. Fetch conversations where user is a participant (minimal columns)
     const { data: convs, error: convError } = await supabaseAdmin
       .from('conversations')
-      .select('*')
+      .select('id, participant_a, participant_b, last_message_at, last_message_preview, created_at')
       .or(`participant_a.eq.${userId},participant_b.eq.${userId}`)
       .order('last_message_at', { ascending: false });
 
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
     const { data: blocks } = await supabaseAdmin
       .from('user_blocks')
-      .select('*')
+      .select('blocker_id, blocked_id')
       .or(`blocker_id.eq.${userId},blocked_id.eq.${userId}`);
 
     const blockedSet = new Set<string>();
@@ -49,11 +49,11 @@ export async function GET(req: NextRequest) {
       return !blockedSet.has(otherId);
     });
 
-    // 3. Fetch other user profiles
+    // 3. Fetch other user profiles (PRIVACY: only public scholar directory fields, NO mobile/email)
     const cleanOtherIds = Array.from(new Set(allowedConvs.map((c) => (c.participant_a === userId ? c.participant_b : c.participant_a))));
     const { data: profiles } = await supabaseAdmin
       .from('profiles')
-      .select('id, full_name, mobile, language, target_exam, target_institution, estimated_rank, accuracy, streak_days, telegram_handle')
+      .select('id, username, full_name, language, target_exam, target_institution, estimated_rank, accuracy, streak_days, telegram_handle, last_seen_at')
       .in('id', cleanOtherIds);
 
     const profileMap = new Map<string, any>();
@@ -61,8 +61,8 @@ export async function GET(req: NextRequest) {
       profiles.forEach((p) => {
         profileMap.set(p.id, {
           id: p.id,
+          username: p.username || `scholar_${p.id.slice(0, 4)}`,
           fullName: p.full_name,
-          mobile: p.mobile,
           language: p.language,
           targetExam: p.target_exam,
           targetInstitution: p.target_institution,
@@ -70,6 +70,7 @@ export async function GET(req: NextRequest) {
           accuracy: Number(p.accuracy),
           streakDays: p.streak_days,
           telegramHandle: p.telegram_handle,
+          last_seen_at: p.last_seen_at,
         });
       });
     }
@@ -80,6 +81,7 @@ export async function GET(req: NextRequest) {
         const otherId = conv.participant_a === userId ? conv.participant_b : conv.participant_a;
         const otherProfile = profileMap.get(otherId) || {
           id: otherId,
+          username: `scholar_${otherId.slice(0, 4)}`,
           fullName: 'Scholar',
           targetExam: 'Board Exam',
         };
@@ -119,40 +121,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'Cannot start conversation with yourself' }, { status: 400 });
     }
 
-    // 1. Check if either user is blocked
-    const { data: block } = await supabaseAdmin
-      .from('user_blocks')
-      .select('*')
-      .or(`and(blocker_id.eq.${userId},blocked_id.eq.${targetUserId}),and(blocker_id.eq.${targetUserId},blocked_id.eq.${userId})`)
-      .limit(1)
-      .maybeSingle();
-
-    if (block) {
-      return NextResponse.json({ success: false, error: 'Cannot message this user due to privacy/blocking settings.' }, { status: 403 });
-    }
-
-    // 2. Ensure both participants have profile records in public.profiles to satisfy foreign key constraints
+    // 1. Ensure foreign key profile existence for participant_a and participant_b
     const ensureProfileExists = async (pid: string) => {
       const { data: prof } = await supabaseAdmin.from('profiles').select('id').eq('id', pid).maybeSingle();
       if (!prof) {
-        let email = '';
-        let fullName = 'Scholar';
-        try {
-          const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(pid);
-          if (authUser?.user) {
-            email = authUser.user.email || '';
-            fullName = authUser.user.user_metadata?.full_name || email.split('@')[0] || 'Scholar';
-          }
-        } catch {
-          // ignore
-        }
+        // Attempt to fetch from auth.users or create fallback
+        const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(pid).catch(() => ({ data: { user: null } }));
+        const meta = authUser?.user?.user_metadata || {};
+        const email = authUser?.user?.email;
+        const baseUname = (meta.full_name || email?.split('@')[0] || 'scholar').toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 14);
+        const finalUname = `${baseUname}_${pid.slice(0, 4)}`;
+
         await supabaseAdmin.from('profiles').upsert({
           id: pid,
-          full_name: fullName,
-          mobile: email || pid,
-          language: 'english',
-          target_exam: 'CBSE & Pan-India Board',
-          target_institution: 'National Merit Rank',
+          full_name: meta.full_name || email?.split('@')[0] || 'Scholar',
+          username: finalUname,
+          mobile: meta.mobile || email || pid,
+          language: meta.language || 'english',
+          target_exam: meta.target_exam || 'CBSE & Pan-India Board',
+          target_institution: meta.target_institution || 'National Merit Rank',
           estimated_rank: 150,
           accuracy: 88.0,
           streak_days: 1,
@@ -165,19 +152,19 @@ export async function POST(req: NextRequest) {
 
     await Promise.all([ensureProfileExists(userId), ensureProfileExists(targetUserId)]);
 
-    // 3. Check if conversation already exists
+    // 2. Check if conversation already exists
     const { data: existing } = await supabaseAdmin
       .from('conversations')
-      .select('*')
+      .select('id, participant_a, participant_b, last_message_at, last_message_preview, created_at')
       .or(`and(participant_a.eq.${userId},participant_b.eq.${targetUserId}),and(participant_a.eq.${targetUserId},participant_b.eq.${userId})`)
       .limit(1)
       .maybeSingle();
 
     if (existing) {
-      // Fetch other profile
+      // Fetch other profile (NO mobile/email)
       const { data: otherProfile } = await supabaseAdmin
         .from('profiles')
-        .select('*')
+        .select('id, username, full_name, target_exam, target_institution, estimated_rank, accuracy, streak_days, last_seen_at')
         .eq('id', targetUserId)
         .maybeSingle();
 
@@ -187,9 +174,11 @@ export async function POST(req: NextRequest) {
           ...existing,
           otherUser: otherProfile ? {
             id: otherProfile.id,
+            username: otherProfile.username || `scholar_${otherProfile.id.slice(0, 4)}`,
             fullName: otherProfile.full_name,
             targetExam: otherProfile.target_exam,
             accuracy: Number(otherProfile.accuracy),
+            last_seen_at: otherProfile.last_seen_at,
           } : undefined,
         },
       });
@@ -203,7 +192,7 @@ export async function POST(req: NextRequest) {
         participant_b: targetUserId,
         last_message_preview: 'Conversation started',
       })
-      .select('*')
+      .select('id, participant_a, participant_b, last_message_at, last_message_preview, created_at')
       .single();
 
     if (error || !created) {
@@ -212,7 +201,7 @@ export async function POST(req: NextRequest) {
 
     const { data: otherProfile } = await supabaseAdmin
       .from('profiles')
-      .select('*')
+      .select('id, username, full_name, target_exam, target_institution, estimated_rank, accuracy, streak_days, last_seen_at')
       .eq('id', targetUserId)
       .maybeSingle();
 
@@ -222,14 +211,16 @@ export async function POST(req: NextRequest) {
         ...created,
         otherUser: otherProfile ? {
           id: otherProfile.id,
+          username: otherProfile.username || `scholar_${otherProfile.id.slice(0, 4)}`,
           fullName: otherProfile.full_name,
           targetExam: otherProfile.target_exam,
           accuracy: Number(otherProfile.accuracy),
+          last_seen_at: otherProfile.last_seen_at,
         } : undefined,
       },
     });
   } catch (err: any) {
-    console.error('[ConversationsAPI] Error:', err);
+    console.error('[CreateConversationAPI] Error:', err);
     return NextResponse.json({ success: false, error: err?.message || 'Server error' }, { status: 500 });
   }
 }

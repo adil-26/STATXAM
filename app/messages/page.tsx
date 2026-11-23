@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { Conversation } from '@/lib/types';
 import { fetchUserConversations } from '@/lib/chatRealtime';
+import { getCachedConversations } from '@/lib/chatCache';
 import { initPushNotifications } from '@/lib/notifications';
 import { ChatInbox } from '@/components/chat/ChatInbox';
 import { ChatThread } from '@/components/chat/ChatThread';
@@ -15,9 +16,20 @@ function MessagesContent() {
   const conversationParam = searchParams.get('c');
 
   const { user, loading: authLoading } = useAuth();
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    if (typeof window !== 'undefined' && user?.id) {
+      return getCachedConversations(user.id) || [];
+    }
+    return [];
+  });
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => {
+    if (typeof window !== 'undefined' && user?.id) {
+      const cached = getCachedConversations(user.id);
+      return !cached || cached.length === 0;
+    }
+    return true;
+  });
 
   // 1. Guard Authentication
   useEffect(() => {
@@ -44,10 +56,21 @@ function MessagesContent() {
     }
   }, [user?.id, router]);
 
-  // 4. Load Conversations
+  // 4. Stale-While-Revalidate Load Conversations (<100ms)
   const loadConversations = async () => {
     if (!user?.id) return;
-    setLoading(true);
+    
+    // Check instant cache first
+    const cached = getCachedConversations(user.id);
+    if (cached && cached.length > 0 && conversations.length === 0) {
+      setConversations(cached);
+      setLoading(false);
+      if (conversationParam) {
+        const match = cached.find((c) => c.id === conversationParam);
+        if (match) setActiveConversation(match);
+      }
+    }
+
     const convs = await fetchUserConversations(user.id);
     setConversations(convs);
     setLoading(false);
