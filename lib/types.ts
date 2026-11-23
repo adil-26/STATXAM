@@ -135,3 +135,56 @@ export interface TopicProficiency {
   status: 'Mastered' | 'Proficient' | 'Target Review' | 'Critical Gap';
   callout?: string;
 }
+
+export interface Conversation {
+  id: string;
+  participant_a: string;
+  participant_b: string;
+  last_message_at: string;
+  last_message_preview?: string;
+  created_at: string;
+  // Augmented client-side fields
+  otherUser?: PilotProfile;
+  unreadCount?: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  recipient_id: string;
+  content: string;
+  message_type: 'text' | 'image' | 'call_invitation';
+  read_at?: string | null;
+  created_at: string;
+  // Optimistic UI status
+  status?: 'sending' | 'sent' | 'failed';
+}
+
+export interface UserBlock {
+  blocker_id: string;
+  blocked_id: string;
+  created_at: string;
+}
+
+export interface UserReport {
+  id: string;
+  reporter_id: string;
+  reported_user_id: string;
+  message_id?: string | null;
+  reason: string;
+  status: 'open' | 'reviewed' | 'resolved' | 'dismissed';
+  admin_notes?: string;
+  created_at: string;
+  updated_at: string;
+  reporter?: PilotProfile;
+  reportedUser?: PilotProfile;
+}
+
+export interface DeviceToken {
+  user_id: string;
+  token: string;
+  platform: 'android' | 'web' | 'ios';
+  updated_at: string;
+}
+

@@ -68,6 +68,7 @@ export default function AdminLayout({
     { label: 'All-India Boards (28 States)', href: '/admin/boards', icon: 'table_chart' },
     { label: 'Multi-Subject Drive & Groq Studio', href: '/admin/ingest', icon: 'add_to_drive' },
     { label: 'Question Bank Review', href: '/admin/review', icon: 'fact_check' },
+    { label: 'Moderation & UGC Reports', href: '/admin/moderation', icon: 'gavel' },
     { label: 'API Keys & AI Engine', href: '/admin/settings', icon: 'vpn_key' },
   ];
 

@@ -70,6 +70,22 @@ export default function AppHeader() {
             </Link>
           )}
 
+          {/* Messages / Study Discussions Link */}
+          {user && (
+            <Link
+              href="/messages"
+              onClick={() => triggerHaptic('light')}
+              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center border transition-all shadow-2xs active:scale-95 relative ${
+                pathname?.startsWith('/messages')
+                  ? 'bg-[#c2652a] text-white border-[#c2652a]'
+                  : 'bg-[#ffffff] hover:bg-[#f3ebe0] text-[#2b2118] border-[#e8dccb]'
+              }`}
+              title="Peer Study Discussions"
+            >
+              <span className="material-symbols-outlined text-[18px] sm:text-[20px]">forum</span>
+            </Link>
+          )}
+
           {/* Notification Bell */}
           <button
             onClick={() => {

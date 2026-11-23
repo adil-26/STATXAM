@@ -326,3 +326,223 @@ VALUES
     0
 )
 ON CONFLICT (id) DO UPDATE SET stem = EXCLUDED.stem, solution = EXCLUDED.solution;
+
+-- ==============================================================================
+-- 7. Real-Time Peer-to-Peer Messaging & UGC Safety System
+-- ==============================================================================
+
+-- Conversations Table
+CREATE TABLE IF NOT EXISTS public.conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    participant_a TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    participant_b TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    last_message_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    last_message_preview TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    CONSTRAINT check_different_participants CHECK (participant_a <> participant_b)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_conversation_pair
+    ON public.conversations (LEAST(participant_a, participant_b), GREATEST(participant_a, participant_b));
+
+CREATE INDEX IF NOT EXISTS idx_conversations_participant_a ON public.conversations(participant_a);
+CREATE INDEX IF NOT EXISTS idx_conversations_participant_b ON public.conversations(participant_b);
+CREATE INDEX IF NOT EXISTS idx_conversations_last_message ON public.conversations(last_message_at DESC);
+
+-- Messages Table
+CREATE TABLE IF NOT EXISTS public.messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
+    sender_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    recipient_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    content TEXT NOT NULL,
+    message_type TEXT NOT NULL DEFAULT 'text',
+    read_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_messages_conversation ON public.messages(conversation_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_messages_recipient ON public.messages(recipient_id, read_at);
+
+-- User Blocklist (Safety / UGC compliance)
+CREATE TABLE IF NOT EXISTS public.user_blocks (
+    blocker_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    blocked_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    PRIMARY KEY (blocker_id, blocked_id),
+    CONSTRAINT check_different_blocks CHECK (blocker_id <> blocked_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_blocks_blocker ON public.user_blocks(blocker_id);
+CREATE INDEX IF NOT EXISTS idx_user_blocks_blocked ON public.user_blocks(blocked_id);
+
+-- User Reports Table (App Store & Indus UGC moderation)
+CREATE TABLE IF NOT EXISTS public.user_reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reporter_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    reported_user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    message_id UUID REFERENCES public.messages(id) ON DELETE SET NULL,
+    reason TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'reviewed', 'resolved', 'dismissed')),
+    admin_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_reports_status ON public.user_reports(status, created_at DESC);
+
+-- Device Tokens Table (FCM Push Notifications)
+CREATE TABLE IF NOT EXISTS public.device_tokens (
+    user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    token TEXT NOT NULL,
+    platform TEXT NOT NULL CHECK (platform IN ('android', 'web', 'ios')),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    PRIMARY KEY (user_id, token)
+);
+
+CREATE INDEX IF NOT EXISTS idx_device_tokens_user ON public.device_tokens(user_id);
+
+-- Notifications Audit Log Table
+CREATE TABLE IF NOT EXISTS public.notifications_log (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    data JSONB DEFAULT '{}'::jsonb,
+    status TEXT DEFAULT 'sent',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_log_user ON public.notifications_log(user_id, created_at DESC);
+
+-- Enable Supabase Realtime for Messages & Conversations
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'messages'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_publication_tables 
+        WHERE pubname = 'supabase_realtime' AND schemaname = 'public' AND tablename = 'conversations'
+    ) THEN
+        ALTER PUBLICATION supabase_realtime ADD TABLE public.conversations;
+    END IF;
+END $$;
+
+-- Enable RLS
+ALTER TABLE public.conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_blocks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_reports ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.device_tokens ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.notifications_log ENABLE ROW LEVEL SECURITY;
+
+-- Conversations RLS Policies
+DROP POLICY IF EXISTS "Users can view their own conversations if not blocked" ON public.conversations;
+CREATE POLICY "Users can view their own conversations if not blocked"
+    ON public.conversations FOR SELECT
+    USING (
+        (auth.uid()::text = participant_a OR auth.uid()::text = participant_b)
+        AND NOT EXISTS (
+            SELECT 1 FROM public.user_blocks b
+            WHERE (b.blocker_id = auth.uid()::text AND b.blocked_id = CASE WHEN auth.uid()::text = participant_a THEN participant_b ELSE participant_a END)
+               OR (b.blocker_id = CASE WHEN auth.uid()::text = participant_a THEN participant_b ELSE participant_a END AND b.blocked_id = auth.uid()::text)
+        )
+    );
+
+DROP POLICY IF EXISTS "Users can create conversations if not blocked" ON public.conversations;
+CREATE POLICY "Users can create conversations if not blocked"
+    ON public.conversations FOR INSERT
+    WITH CHECK (
+        (auth.uid()::text = participant_a OR auth.uid()::text = participant_b)
+        AND NOT EXISTS (
+            SELECT 1 FROM public.user_blocks b
+            WHERE (b.blocker_id = participant_a AND b.blocked_id = participant_b)
+               OR (b.blocker_id = participant_b AND b.blocked_id = participant_a)
+        )
+    );
+
+DROP POLICY IF EXISTS "Users can update their conversations last_message" ON public.conversations;
+CREATE POLICY "Users can update their conversations last_message"
+    ON public.conversations FOR UPDATE
+    USING (auth.uid()::text = participant_a OR auth.uid()::text = participant_b);
+
+-- Messages RLS Policies
+DROP POLICY IF EXISTS "Users can view messages in their conversations if not blocked" ON public.messages;
+CREATE POLICY "Users can view messages in their conversations if not blocked"
+    ON public.messages FOR SELECT
+    USING (
+        (auth.uid()::text = sender_id OR auth.uid()::text = recipient_id)
+        AND NOT EXISTS (
+            SELECT 1 FROM public.user_blocks b
+            WHERE (b.blocker_id = sender_id AND b.blocked_id = recipient_id)
+               OR (b.blocker_id = recipient_id AND b.blocked_id = sender_id)
+        )
+    );
+
+DROP POLICY IF EXISTS "Users can insert messages to allowed recipients" ON public.messages;
+CREATE POLICY "Users can insert messages to allowed recipients"
+    ON public.messages FOR INSERT
+    WITH CHECK (
+        auth.uid()::text = sender_id
+        AND NOT EXISTS (
+            SELECT 1 FROM public.user_blocks b
+            WHERE (b.blocker_id = sender_id AND b.blocked_id = recipient_id)
+               OR (b.blocker_id = recipient_id AND b.blocked_id = sender_id)
+        )
+    );
+
+DROP POLICY IF EXISTS "Recipients can mark messages as read" ON public.messages;
+CREATE POLICY "Recipients can mark messages as read"
+    ON public.messages FOR UPDATE
+    USING (auth.uid()::text = recipient_id);
+
+-- Blocks RLS Policies
+DROP POLICY IF EXISTS "Users can view their own block list" ON public.user_blocks;
+CREATE POLICY "Users can view their own block list"
+    ON public.user_blocks FOR SELECT
+    USING (auth.uid()::text = blocker_id);
+
+DROP POLICY IF EXISTS "Users can add blocks" ON public.user_blocks;
+CREATE POLICY "Users can add blocks"
+    ON public.user_blocks FOR INSERT
+    WITH CHECK (auth.uid()::text = blocker_id);
+
+DROP POLICY IF EXISTS "Users can remove blocks" ON public.user_blocks;
+CREATE POLICY "Users can remove blocks"
+    ON public.user_blocks FOR DELETE
+    USING (auth.uid()::text = blocker_id);
+
+-- Reports RLS Policies
+DROP POLICY IF EXISTS "Users can submit reports" ON public.user_reports;
+CREATE POLICY "Users can submit reports"
+    ON public.user_reports FOR INSERT
+    WITH CHECK (auth.uid()::text = reporter_id);
+
+DROP POLICY IF EXISTS "Users and admins can view reports" ON public.user_reports;
+CREATE POLICY "Users and admins can view reports"
+    ON public.user_reports FOR SELECT
+    USING (
+        auth.uid()::text = reporter_id
+        OR EXISTS (
+            SELECT 1 FROM public.profiles p
+            WHERE p.id = auth.uid()::text AND (p.target_institution = 'Admin' OR p.id LIKE 'admin%')
+        )
+    );
+
+-- Device Tokens RLS Policies
+DROP POLICY IF EXISTS "Users manage their own device tokens" ON public.device_tokens;
+CREATE POLICY "Users manage their own device tokens"
+    ON public.device_tokens FOR ALL
+    USING (auth.uid()::text = user_id)
+    WITH CHECK (auth.uid()::text = user_id);
+
+-- Notifications Log RLS Policies
+DROP POLICY IF EXISTS "Users view their own notifications" ON public.notifications_log;
+CREATE POLICY "Users view their own notifications"
+    ON public.notifications_log FOR SELECT
+    USING (auth.uid()::text = user_id);
+

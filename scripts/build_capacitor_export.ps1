@@ -81,7 +81,7 @@ Set-Location $rootDir
 Write-Host "[6/6] Packaging and publishing Release APK..." -ForegroundColor Yellow
 $apkSource = "$rootDir\android\app\build\outputs\apk\release\app-release.apk"
 $apkDest = "$rootDir\public\statxam-release.apk"
-$apkVersionedDest = "$rootDir\public\statxam-v2.1.0-release.apk"
+$apkVersionedDest = "$rootDir\public\statxam-v2.2.0-release.apk"
 
 if (Test-Path $apkSource) {
     Copy-Item -Path $apkSource -Destination $apkDest -Force
@@ -95,7 +95,7 @@ if (Test-Path $apkSource) {
     Write-Host "  Store Upload File: $apkVersionedDest" -ForegroundColor White
     Write-Host "  Mirror File:       $apkDest" -ForegroundColor White
     Write-Host "  Build Variant:     release (debuggable=false)" -ForegroundColor White
-    Write-Host "  Version:           2.1.0 (versionCode 210)" -ForegroundColor White
+    Write-Host "  Version:           2.2.0 (versionCode 220)" -ForegroundColor White
     Write-Host "  Size:              $apkMb MB" -ForegroundColor White
     Write-Host "  Updated:           $($apkInfo.LastWriteTime)" -ForegroundColor White
     Write-Host "==========================================================" -ForegroundColor Green
