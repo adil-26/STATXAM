@@ -211,7 +211,7 @@ export default function ProfilePage() {
     setNotes(updated);
     try {
       localStorage.setItem(`statxam_scholar_notes_${user.id}`, JSON.stringify(updated));
-    } catch {}
+    } catch { }
 
     setNewNoteTitle('');
     setNewNoteContent('');
@@ -226,7 +226,7 @@ export default function ProfilePage() {
     setNotes(updated);
     try {
       localStorage.setItem(`statxam_scholar_notes_${user.id}`, JSON.stringify(updated));
-    } catch {}
+    } catch { }
     showToast('Revision note deleted.');
   };
 
@@ -640,11 +640,10 @@ export default function ProfilePage() {
                       triggerHaptic('light');
                       setSelectedSubject(sub);
                     }}
-                    className={`px-3 py-1 rounded-full text-xs font-label font-bold transition-all shrink-0 ${
-                      selectedSubject === sub
-                        ? 'bg-primary text-on-primary shadow-2xs'
-                        : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/50'
-                    }`}
+                    className={`px-3 py-1 rounded-full text-xs font-label font-bold transition-all shrink-0 ${selectedSubject === sub
+                      ? 'bg-primary text-on-primary shadow-2xs'
+                      : 'bg-surface-container hover:bg-surface-container-high text-on-surface-variant border border-outline-variant/50'
+                      }`}
                   >
                     {sub}
                   </button>
@@ -862,14 +861,12 @@ export default function ProfilePage() {
                 </div>
                 <button
                   onClick={() => handleToggle('focusMode')}
-                  className={`relative w-11 h-6 rounded-full p-0.5 transition-colors ${
-                    toggles.focusMode ? 'bg-primary' : 'bg-surface-container-high'
-                  }`}
+                  className={`relative w-11 h-6 rounded-full p-0.5 transition-colors ${toggles.focusMode ? 'bg-primary' : 'bg-surface-container-high'
+                    }`}
                 >
                   <span
-                    className={`block w-5 h-5 rounded-full bg-white shadow-xs transform transition-transform ${
-                      toggles.focusMode ? 'translate-x-5' : 'translate-x-0'
-                    }`}
+                    className={`block w-5 h-5 rounded-full bg-white shadow-xs transform transition-transform ${toggles.focusMode ? 'translate-x-5' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>
@@ -887,14 +884,12 @@ export default function ProfilePage() {
                 </div>
                 <button
                   onClick={() => handleToggle('haptics')}
-                  className={`relative w-11 h-6 rounded-full p-0.5 transition-colors ${
-                    toggles.haptics ? 'bg-primary' : 'bg-surface-container-high'
-                  }`}
+                  className={`relative w-11 h-6 rounded-full p-0.5 transition-colors ${toggles.haptics ? 'bg-primary' : 'bg-surface-container-high'
+                    }`}
                 >
                   <span
-                    className={`block w-5 h-5 rounded-full bg-white shadow-xs transform transition-transform ${
-                      toggles.haptics ? 'translate-x-5' : 'translate-x-0'
-                    }`}
+                    className={`block w-5 h-5 rounded-full bg-white shadow-xs transform transition-transform ${toggles.haptics ? 'translate-x-5' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>
@@ -912,14 +907,12 @@ export default function ProfilePage() {
                 </div>
                 <button
                   onClick={() => handleToggle('autoDownload')}
-                  className={`relative w-11 h-6 rounded-full p-0.5 transition-colors ${
-                    toggles.autoDownload ? 'bg-primary' : 'bg-surface-container-high'
-                  }`}
+                  className={`relative w-11 h-6 rounded-full p-0.5 transition-colors ${toggles.autoDownload ? 'bg-primary' : 'bg-surface-container-high'
+                    }`}
                 >
                   <span
-                    className={`block w-5 h-5 rounded-full bg-white shadow-xs transform transition-transform ${
-                      toggles.autoDownload ? 'translate-x-5' : 'translate-x-0'
-                    }`}
+                    className={`block w-5 h-5 rounded-full bg-white shadow-xs transform transition-transform ${toggles.autoDownload ? 'translate-x-5' : 'translate-x-0'
+                      }`}
                   />
                 </button>
               </div>

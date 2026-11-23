@@ -83,11 +83,10 @@ export default function BottomNav() {
               key={tab.href}
               href={tab.href}
               onClick={() => triggerHaptic('light')}
-              className={`flex flex-col items-center justify-center flex-1 h-12 min-w-[52px] rounded-2xl transition-all duration-150 active:scale-95 ${
-                isActive
-                  ? 'text-[#c2652a] font-bold bg-[#c2652a]/10'
-                  : 'text-[#6e5a49] hover:text-[#2b2118] font-medium'
-              }`}
+              className={`flex flex-col items-center justify-center flex-1 h-12 min-w-[52px] rounded-2xl transition-all duration-150 active:scale-95 ${isActive
+                ? 'text-[#c2652a] font-bold bg-[#c2652a]/10'
+                : 'text-[#6e5a49] hover:text-[#2b2118] font-medium'
+                }`}
             >
               <span
                 className="material-symbols-outlined text-[22px] transition-transform"

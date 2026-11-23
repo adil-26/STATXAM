@@ -7,6 +7,7 @@ import {
   sendChatMessage,
   subscribeToConversationMessages,
   createChatPresenceChannel,
+  markConversationAsRead,
 } from '@/lib/chatRealtime';
 import { getCachedMessages, setCachedMessages, appendCachedMessage } from '@/lib/chatCache';
 import { triggerHaptic } from '@/lib/native-permissions';
@@ -19,6 +20,29 @@ interface ChatThreadProps {
   currentUser: PilotProfile;
   onBack: () => void;
   onUserBlocked?: () => void;
+}
+
+function formatMessageDateDivider(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    const today = new Date();
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+
+    if (d.toDateString() === today.toDateString()) {
+      return 'Today';
+    }
+    if (d.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    }
+    return d.toLocaleDateString([], {
+      month: 'short',
+      day: 'numeric',
+      year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+    });
+  } catch {
+    return 'Recent';
+  }
 }
 
 export function ChatThread({
@@ -43,6 +67,7 @@ export function ChatThread({
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [callNotice, setCallNotice] = useState<string | null>(null);
 
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const presenceRef = useRef<{ sendTyping: (isTyping: boolean) => void; unsubscribe: () => void } | null>(null);
@@ -61,53 +86,75 @@ export function ChatThread({
     telegramLinked: true,
   };
 
-  const scrollToBottom = (smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+  // Smart Auto-Scroll: only auto-scrolls if the user is already near the bottom or forced
+  const scrollToBottom = (smooth = true, force = false) => {
+    if (!scrollContainerRef.current) return;
+    const container = scrollContainerRef.current;
+    const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 160;
+    if (force || isNearBottom) {
+      messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    }
   };
 
-  // 1. Initial Load of Messages
+  // 1. Initial Load of Messages & Mark as Read
   useEffect(() => {
     let mounted = true;
     async function load() {
       const msgs = await fetchConversationMessages(conversation.id);
       if (mounted) {
         setMessages(msgs);
-        setTimeout(() => scrollToBottom(false), 80);
+        setTimeout(() => scrollToBottom(false, true), 80);
       }
+      // Auto-mark incoming unread messages as read (generates read_at for double-ticks)
+      markConversationAsRead(conversation.id, currentUser.id);
     }
     load();
     return () => {
       mounted = false;
     };
-  }, [conversation.id]);
+  }, [conversation.id, currentUser.id]);
 
-  // 2. Real-time Message Subscription (Supabase Realtime postgres_changes)
+  // 2. Real-time Message Subscription (Handles BOTH INSERT and UPDATE for double-ticks)
   useEffect(() => {
-    const unsubscribeMessages = subscribeToConversationMessages(conversation.id, (newMsg) => {
-      setMessages((prev) => {
-        // De-duplicate if already optimistically added
-        const exists = prev.some(
-          (m) =>
-            m.id === newMsg.id ||
-            (m.status === 'sending' && m.content === newMsg.content && m.sender_id === newMsg.sender_id)
-        );
-        if (exists) {
-          return prev.map((m) =>
-            m.content === newMsg.content && m.sender_id === newMsg.sender_id
-              ? { ...newMsg, status: 'sent' }
-              : m
+    const unsubscribeMessages = subscribeToConversationMessages(
+      conversation.id,
+      (newMsg) => {
+        setMessages((prev) => {
+          // De-duplicate if already optimistically added
+          const exists = prev.some(
+            (m) =>
+              m.id === newMsg.id ||
+              (m.status === 'sending' && m.content === newMsg.content && m.sender_id === newMsg.sender_id)
           );
+          if (exists) {
+            return prev.map((m) =>
+              m.content === newMsg.content && m.sender_id === newMsg.sender_id
+                ? { ...newMsg, status: 'sent' }
+                : m
+            );
+          }
+          return [...prev, { ...newMsg, status: 'sent' }];
+        });
+        triggerHaptic('light');
+        setTimeout(() => scrollToBottom(true, false), 50);
+
+        // If an incoming message arrives while the thread is active, auto-mark it as read
+        if (newMsg.recipient_id === currentUser.id) {
+          markConversationAsRead(conversation.id, currentUser.id);
         }
-        return [...prev, { ...newMsg, status: 'sent' }];
-      });
-      triggerHaptic('light');
-      setTimeout(() => scrollToBottom(true), 50);
-    });
+      },
+      (updatedMsg) => {
+        // Realtime UPDATE: Flips single tick into blue double-tick (✓✓) live without refreshing!
+        setMessages((prev) =>
+          prev.map((m) => (m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m))
+        );
+      }
+    );
 
     return () => {
       unsubscribeMessages();
     };
-  }, [conversation.id]);
+  }, [conversation.id, currentUser.id]);
 
   // 3. Realtime Presence & Typing Channel
   useEffect(() => {
@@ -160,7 +207,7 @@ export function ChatThread({
       presenceRef.current.sendTyping(false);
     }
 
-    // Optimistic UI update
+    // Optimistic UI update: instant send feedback
     const tempId = `temp-${Date.now()}`;
     const optimisticMessage: ChatMessage = {
       id: tempId,
@@ -174,7 +221,7 @@ export function ChatThread({
     };
 
     setMessages((prev) => [...prev, optimisticMessage]);
-    setTimeout(() => scrollToBottom(true), 50);
+    setTimeout(() => scrollToBottom(true, true), 40);
 
     setIsSending(true);
     const res = await sendChatMessage({
@@ -221,7 +268,7 @@ export function ChatThread({
             <span className="material-symbols-outlined text-[22px]">arrow_back</span>
           </button>
 
-          {/* Peer Avatar & Status (Tap to open full scholar profile & notes) */}
+          {/* Peer Avatar & Dual Identity (Real Name + @username) */}
           <div
             onClick={() => {
               triggerHaptic('light');
@@ -235,23 +282,28 @@ export function ChatThread({
                 {otherUser.fullName.charAt(0).toUpperCase()}
               </div>
               <span
-                className={`absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-2 border-white ${isPeerOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'
-                  }`}
+                className={`absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-2 border-white ${
+                  isPeerOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'
+                }`}
               />
             </div>
 
             <div className="min-w-0">
+              {/* Primary Line: Real Name */}
               <div className="flex items-center gap-1.5">
                 <h2 className="font-serif text-sm sm:text-base font-bold text-[#2b2118] truncate leading-tight">
                   {otherUser.fullName}
                 </h2>
-                <span className="text-xs font-mono font-semibold text-[#c2652a] truncate">
-                  @{otherUser.username || 'scholar'}
-                </span>
                 <span className="material-symbols-outlined text-[13px] text-[#c2652a]">verified</span>
               </div>
+
+              {/* Secondary Line: @username + Board + Online Status */}
               <div className="flex items-center gap-1.5 text-[11px] text-[#6e5a49]">
-                <span className="truncate max-w-[120px] sm:max-w-none">
+                <span className="font-mono text-[#c2652a] font-semibold truncate">
+                  @{otherUser.username || 'scholar'}
+                </span>
+                <span>•</span>
+                <span className="truncate max-w-[100px] sm:max-w-none">
                   {otherUser.targetExam || 'Scholar'}
                 </span>
                 <span>•</span>
@@ -268,7 +320,7 @@ export function ChatThread({
                       <span>Active now</span>
                     </>
                   ) : (
-                    'Last seen recently'
+                    'Offline'
                   )}
                 </span>
               </div>
@@ -359,8 +411,11 @@ export function ChatThread({
         </div>
       )}
 
-      {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+      {/* Messages Scroll Area with Date Dividers & Double Ticks */}
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto p-4 space-y-2 min-h-0"
+      >
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-2 text-[#6e5a49]">
             <div className="w-12 h-12 rounded-full bg-[#e8dccb]/40 flex items-center justify-center text-[#c2652a]">
@@ -372,45 +427,85 @@ export function ChatThread({
             </p>
           </div>
         ) : (
-          messages.map((msg) => {
+          messages.map((msg, index) => {
             const isMe = msg.sender_id === currentUser.id;
             const timeStr = new Date(msg.created_at).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
             });
 
-            return (
-              <div
-                key={msg.id}
-                className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in fade-in duration-150`}
-              >
-                <div
-                  className={`max-w-[82%] sm:max-w-md px-4 py-2.5 rounded-2xl shadow-xs text-xs leading-relaxed relative ${isMe
-                      ? 'bg-[#c2652a] text-[#ffffff] rounded-br-xs'
-                      : 'bg-[#ffffff] text-[#2b2118] border border-[#e8dccb] rounded-bl-xs'
-                    }`}
-                >
-                  <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+            // Date Divider logic: groups messages cleanly by day
+            const showDateDivider =
+              index === 0 ||
+              new Date(msg.created_at).toDateString() !==
+                new Date(messages[index - 1].created_at).toDateString();
 
+            return (
+              <React.Fragment key={msg.id}>
+                {showDateDivider && (
+                  <div className="flex justify-center my-3 select-none">
+                    <span className="px-3 py-0.5 rounded-full bg-[#e8dccb]/60 border border-[#e8dccb] text-[10px] font-bold font-mono text-[#6e5a49] shadow-2xs">
+                      {formatMessageDateDivider(msg.created_at)}
+                    </span>
+                  </div>
+                )}
+
+                <div
+                  className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in fade-in duration-150`}
+                >
                   <div
-                    className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${isMe ? 'text-white/80' : 'text-[#6e5a49]'
-                      }`}
+                    className={`max-w-[82%] sm:max-w-md px-3.5 py-2 rounded-2xl shadow-xs text-xs leading-relaxed relative ${
+                      isMe
+                        ? 'bg-[#c2652a] text-[#ffffff] rounded-br-xs'
+                        : 'bg-[#ffffff] text-[#2b2118] border border-[#e8dccb] rounded-bl-xs'
+                    }`}
                   >
-                    <span>{timeStr}</span>
-                    {isMe && (
-                      <span className="material-symbols-outlined text-[12px]">
-                        {msg.status === 'sending'
-                          ? 'schedule'
-                          : msg.status === 'failed'
-                            ? 'error'
-                            : msg.read_at
-                              ? 'done_all'
-                              : 'done'}
-                      </span>
-                    )}
+                    <p className="whitespace-pre-wrap break-words">{msg.content}</p>
+
+                    <div
+                      className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${
+                        isMe ? 'text-white/85' : 'text-[#6e5a49]'
+                      }`}
+                    >
+                      <span>{timeStr}</span>
+
+                      {/* WhatsApp-Style Live Status: Clock (sending), Single Tick (sent), Double Tick (seen) */}
+                      {isMe && (
+                        <span
+                          className="inline-flex items-center ml-0.5"
+                          title={
+                            msg.read_at
+                              ? `Seen at ${new Date(msg.read_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                              : msg.status === 'sending'
+                              ? 'Sending...'
+                              : 'Delivered'
+                          }
+                        >
+                          {msg.status === 'sending' ? (
+                            <span className="material-symbols-outlined text-[12px] opacity-70 animate-pulse">
+                              schedule
+                            </span>
+                          ) : msg.status === 'failed' ? (
+                            <span className="material-symbols-outlined text-[13px] text-red-300">
+                              error
+                            </span>
+                          ) : msg.read_at ? (
+                            /* Seen: Double Tick in crisp sky blue (#38bdf8) */
+                            <span className="material-symbols-outlined text-[15px] text-[#38bdf8] font-bold">
+                              done_all
+                            </span>
+                          ) : (
+                            /* Sent / Delivered: Single Tick in clean white */
+                            <span className="material-symbols-outlined text-[13px] text-white/80">
+                              done
+                            </span>
+                          )}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
+              </React.Fragment>
             );
           })
         )}

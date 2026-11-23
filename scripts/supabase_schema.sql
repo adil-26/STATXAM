@@ -498,10 +498,16 @@ CREATE POLICY "Users can insert messages to allowed recipients"
         )
     );
 
+-- Critical RLS Policy: Recipients can mark incoming messages as read (live double-tick support)
 DROP POLICY IF EXISTS "Recipients can mark messages as read" ON public.messages;
 CREATE POLICY "Recipients can mark messages as read"
     ON public.messages FOR UPDATE
-    USING (auth.uid() IS NULL OR auth.uid()::text = recipient_id);
+    USING (auth.uid() IS NULL OR auth.uid()::text = recipient_id)
+    WITH CHECK (auth.uid() IS NULL OR auth.uid()::text = recipient_id);
+
+-- Optional delivered_at timestamp column for multi-stage delivery receipts
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMP WITH TIME ZONE;
+CREATE INDEX IF NOT EXISTS idx_messages_unread ON public.messages(conversation_id, recipient_id) WHERE read_at IS NULL;
 
 -- Blocks RLS Policies
 DROP POLICY IF EXISTS "Users can view their own block list" ON public.user_blocks;

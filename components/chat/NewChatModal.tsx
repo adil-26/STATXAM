@@ -198,14 +198,18 @@ export function NewChatModal({
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <p className="text-xs font-bold text-[#2b2118] truncate font-mono">
-                        @{scholar.username}
+                      <p className="font-serif text-xs sm:text-sm font-bold text-[#2b2118] truncate">
+                        {scholar.fullName}
                       </p>
                       <span className="material-symbols-outlined text-[13px] text-[#c2652a]">verified</span>
                     </div>
-                    <p className="text-[11px] text-[#6e5a49] truncate font-sans">
-                      {scholar.fullName} • {scholar.targetExam}
-                    </p>
+                    <div className="flex items-center gap-1.5 text-[11px] text-[#6e5a49] truncate mt-0.5 font-sans">
+                      <span className="font-mono text-[#c2652a] font-bold">
+                        @{scholar.username}
+                      </span>
+                      <span>•</span>
+                      <span className="truncate">{scholar.targetExam}</span>
+                    </div>
                   </div>
                 </div>
 

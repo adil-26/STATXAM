@@ -30,12 +30,13 @@ async function fetchWithRetry(url: string, options?: RequestInit, retries = 1, d
 }
 
 /**
- * Subscribes to new incoming messages for a specific conversation using Supabase Realtime postgres_changes.
+ * Subscribes to new incoming messages AND live read-receipt UPDATEs for a specific conversation using Supabase Realtime postgres_changes.
  * Automatically cleans up channel on unmount.
  */
 export function subscribeToConversationMessages(
   conversationId: string,
-  onNewMessage: (message: ChatMessage) => void
+  onNewMessage: (message: ChatMessage) => void,
+  onMessageUpdate?: (message: ChatMessage) => void
 ): () => void {
   const channelName = `conversation:${conversationId}`;
 
@@ -57,11 +58,58 @@ export function subscribeToConversationMessages(
         }
       }
     )
+    .on(
+      'postgres_changes',
+      {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      },
+      (payload) => {
+        if (payload.new) {
+          const updatedMsg = payload.new as ChatMessage;
+          // Synchronize cached message with new read_at timestamp
+          const cached = getCachedMessages(conversationId) || [];
+          const updatedList = cached.map((m) =>
+            m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m
+          );
+          setCachedMessages(conversationId, updatedList);
+          if (onMessageUpdate) {
+            onMessageUpdate(updatedMsg);
+          }
+        }
+      }
+    )
     .subscribe();
 
   return () => {
     supabase.removeChannel(channel);
   };
+}
+
+/**
+ * Marks all incoming unread messages in a conversation as read (triggers Realtime UPDATE for double-ticks).
+ */
+export async function markConversationAsRead(conversationId: string, userId: string): Promise<void> {
+  const now = new Date().toISOString();
+  try {
+    await supabase
+      .from('messages')
+      .update({ read_at: now })
+      .eq('conversation_id', conversationId)
+      .eq('recipient_id', userId)
+      .is('read_at', null);
+  } catch (err) {
+    console.warn('[ChatRealtime] Direct read_at update failed, trying API route...', err);
+    try {
+      await fetch(getApiUrl('/api/chat/messages'), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId, userId }),
+      });
+    } catch {}
+  }
 }
 
 /**

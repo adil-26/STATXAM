@@ -132,3 +132,29 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: err?.message || 'Server error' }, { status: 500 });
   }
 }
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    const { conversationId, userId } = body;
+
+    if (!conversationId || !userId) {
+      return NextResponse.json({ success: false, error: 'conversationId and userId are required' }, { status: 400 });
+    }
+
+    const { error } = await supabaseAdmin
+      .from('messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('recipient_id', userId)
+      .is('read_at', null);
+
+    if (error) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err?.message || 'Server error' }, { status: 500 });
+  }
+}
