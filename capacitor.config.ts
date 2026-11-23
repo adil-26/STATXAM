@@ -1,4 +1,5 @@
 import type { CapacitorConfig } from '@capacitor/cli';
+import { KeyboardResize, KeyboardStyle } from '@capacitor/keyboard';
 
 const config: CapacitorConfig = {
   appId: 'com.statxam.app',
@@ -18,8 +19,9 @@ const config: CapacitorConfig = {
       backgroundColor: '#faf5ee',
     },
     Keyboard: {
-      resize: 'body',
-      style: 'LIGHT',
+      resize: KeyboardResize.Body,
+      style: KeyboardStyle.Light,
+      resizeOnFullScreen: true,
     },
     SplashScreen: {
       launchShowDuration: 1500,

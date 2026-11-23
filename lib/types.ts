@@ -126,6 +126,17 @@ export interface PilotProfile {
   telegramHandle?: string;
   accepted_terms_at?: string;
   created_at?: string;
+  last_seen_at?: string;
+}
+
+export interface ScholarNote {
+  id: string;
+  studentId: string;
+  title: string;
+  subject: string;
+  content: string;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 export interface TopicProficiency {

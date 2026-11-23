@@ -4,13 +4,17 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { triggerHaptic } from '@/lib/native-permissions';
+import { listenToKeyboardState } from '@/lib/keyboard';
 import { useExamMode } from './ExamModeContext';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const { mode } = useExamMode();
   const [modalOpen, setModalOpen] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [isChatActive, setIsChatActive] = useState(false);
 
+  // Listen to global modal state
   useEffect(() => {
     const handleModalState = (e: any) => {
       setModalOpen(Boolean(e?.detail?.open));
@@ -19,9 +23,34 @@ export default function BottomNav() {
     return () => window.removeEventListener('statxam_modal_state', handleModalState);
   }, []);
 
-  // Hide on admin routes, auth screens, legal documents, or when any modal/challenge/test is active
+  // Listen to keyboard visibility (native APK + web inputs)
+  useEffect(() => {
+    const unsubscribeKeyboard = listenToKeyboardState((visible) => {
+      setIsKeyboardVisible(visible);
+    });
+    return () => unsubscribeKeyboard();
+  }, []);
+
+  // Listen to chat active state
+  useEffect(() => {
+    const handleChatState = (e: any) => {
+      setIsChatActive(Boolean(e?.detail?.active));
+    };
+    window.addEventListener('statxam_chat_active', handleChatState);
+
+    // Initial check if opened directly with conversation query (?c=)
+    if (typeof window !== 'undefined' && pathname?.startsWith('/messages') && window.location.search.includes('c=')) {
+      setIsChatActive(true);
+    }
+
+    return () => window.removeEventListener('statxam_chat_active', handleChatState);
+  }, [pathname]);
+
+  // Hide on typing (keyboard open), in active chat conversation, admin routes, auth screens, legal docs, or active modals
   if (
     modalOpen ||
+    isKeyboardVisible ||
+    isChatActive ||
     !pathname ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/auth') ||

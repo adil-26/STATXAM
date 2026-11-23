@@ -26,7 +26,16 @@ function MessagesContent() {
     }
   }, [user, authLoading, router]);
 
-  // 2. Initialize Push Notifications (FCM / Capacitor)
+  // 2. Broadcast Chat Active state so AppShell and BottomNav hide when a mobile thread is open
+  useEffect(() => {
+    const active = Boolean(activeConversation);
+    window.dispatchEvent(new CustomEvent('statxam_chat_active', { detail: { active } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent('statxam_chat_active', { detail: { active: false } }));
+    };
+  }, [activeConversation]);
+
+  // 3. Initialize Push Notifications (FCM / Capacitor)
   useEffect(() => {
     if (user?.id) {
       initPushNotifications(user.id, (path) => {
@@ -35,7 +44,7 @@ function MessagesContent() {
     }
   }, [user?.id, router]);
 
-  // 3. Load Conversations
+  // 4. Load Conversations
   const loadConversations = async () => {
     if (!user?.id) return;
     setLoading(true);
@@ -70,9 +79,9 @@ function MessagesContent() {
   }
 
   return (
-    <div className="w-full min-h-[calc(100vh-4rem)] bg-[#faf5ee]">
-      {/* Responsive Layout: Split on desktop, single-view on mobile */}
-      <div className="max-w-6xl mx-auto h-[calc(100vh-4rem)] flex flex-col md:flex-row border-x border-[#e8dccb] shadow-xs bg-[#ffffff]">
+    <div className="w-full h-full md:min-h-[calc(100vh-4rem)] bg-[#faf5ee]">
+      {/* Responsive Layout: Split on desktop, full-screen single-view on mobile */}
+      <div className="max-w-6xl mx-auto h-[100dvh] md:h-[calc(100vh-4rem)] flex flex-col md:flex-row md:border-x md:border-[#e8dccb] md:shadow-xs bg-[#ffffff]">
         {/* Left Column: Inbox */}
         <div
           className={`w-full md:w-80 lg:w-96 border-r border-[#e8dccb] flex-shrink-0 h-full ${
@@ -94,7 +103,9 @@ function MessagesContent() {
         {/* Right Column: Active Thread */}
         <div
           className={`flex-1 h-full flex flex-col ${
-            !activeConversation ? 'hidden md:flex flex-col items-center justify-center text-center p-8 bg-[#faf5ee]' : 'flex flex-col'
+            !activeConversation
+              ? 'hidden md:flex flex-col items-center justify-center text-center p-8 bg-[#faf5ee]'
+              : 'flex flex-col h-full'
           }`}
         >
           {activeConversation ? (

@@ -11,6 +11,7 @@ import {
 import { triggerHaptic } from '@/lib/native-permissions';
 import { ReportUserModal } from './ReportUserModal';
 import { BlockUserModal } from './BlockUserModal';
+import { PeerProfileModal } from './PeerProfileModal';
 
 interface ChatThreadProps {
   conversation: Conversation;
@@ -31,7 +32,8 @@ export function ChatThread({
   const [isPeerOnline, setIsPeerOnline] = useState(false);
   const [isPeerTyping, setIsPeerTyping] = useState(false);
 
-  // Safety Menu & Modal State (Mandatory App Store UGC requirement)
+  // Safety & Profile Modals
+  const [showPeerProfile, setShowPeerProfile] = useState(false);
   const [showActionMenu, setShowActionMenu] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
@@ -45,6 +47,13 @@ export function ChatThread({
     id: conversation.participant_a === currentUser.id ? conversation.participant_b : conversation.participant_a,
     fullName: 'Scholar',
     targetExam: 'Board Exam',
+    targetInstitution: 'Merit Scholar Vault',
+    estimatedRank: 118,
+    accuracy: 91.2,
+    streakDays: 7,
+    questionsSolved: 420,
+    mobile: '9876543210',
+    telegramLinked: true,
   };
 
   const scrollToBottom = (smooth = true) => {
@@ -58,7 +67,7 @@ export function ChatThread({
       const msgs = await fetchConversationMessages(conversation.id);
       if (mounted) {
         setMessages(msgs);
-        setTimeout(() => scrollToBottom(false), 100);
+        setTimeout(() => scrollToBottom(false), 80);
       }
     }
     load();
@@ -72,7 +81,11 @@ export function ChatThread({
     const unsubscribeMessages = subscribeToConversationMessages(conversation.id, (newMsg) => {
       setMessages((prev) => {
         // De-duplicate if already optimistically added
-        const exists = prev.some((m) => m.id === newMsg.id || (m.status === 'sending' && m.content === newMsg.content && m.sender_id === newMsg.sender_id));
+        const exists = prev.some(
+          (m) =>
+            m.id === newMsg.id ||
+            (m.status === 'sending' && m.content === newMsg.content && m.sender_id === newMsg.sender_id)
+        );
         if (exists) {
           return prev.map((m) =>
             m.content === newMsg.content && m.sender_id === newMsg.sender_id
@@ -182,50 +195,83 @@ export function ChatThread({
   const handleCallClick = (type: 'voice' | 'video') => {
     triggerHaptic('medium');
     setCallNotice(
-      `StatXam ${type === 'video' ? 'Video' : 'Voice'} Calling will unlock in our upcoming peer study update. Background WebRTC calling channels are being calibrated.`
+      `StatXam ${type === 'video' ? 'Video' : 'Voice'} Calling will unlock in our upcoming peer study update. Background WebRTC channels are being calibrated.`
     );
     setTimeout(() => setCallNotice(null), 4000);
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] max-w-4xl mx-auto bg-[#faf5ee] border-x border-[#e8dccb] relative">
-      {/* Thread Header */}
-      <div className="bg-[#ffffff]/90 backdrop-blur-md border-b border-[#e8dccb] px-4 py-3 flex items-center justify-between sticky top-0 z-20">
-        <div className="flex items-center gap-3 min-w-0">
+    <div className="flex flex-col h-full w-full max-w-4xl mx-auto bg-[#faf5ee] relative">
+      {/* Thread Top Bar (Safe from Top Notch / Status Bar on Mobile) */}
+      <div className="bg-[#ffffff]/95 backdrop-blur-md border-b border-[#e8dccb] px-3.5 py-2.5 sm:py-3 flex items-center justify-between sticky top-0 z-20 pt-[max(env(safe-area-inset-top,0px),10px)] shrink-0 shadow-2xs">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
-            onClick={onBack}
-            className="p-1.5 -ml-1 rounded-full hover:bg-[#faf5ee] text-[#2b2118] transition-colors"
+            onClick={() => {
+              triggerHaptic('light');
+              onBack();
+            }}
+            className="p-1.5 -ml-1 rounded-full hover:bg-[#faf5ee] text-[#2b2118] transition-colors shrink-0"
+            title="Back to Discussions"
           >
             <span className="material-symbols-outlined text-[22px]">arrow_back</span>
           </button>
 
-          {/* Peer Avatar & Status */}
-          <div className="relative">
-            <div className="w-10 h-10 rounded-full bg-[#c2652a]/15 text-[#c2652a] flex items-center justify-center font-bold text-sm border border-[#c2652a]/20">
-              {otherUser.fullName.charAt(0).toUpperCase()}
+          {/* Peer Avatar & Status (Tap to open full scholar profile & notes) */}
+          <div
+            onClick={() => {
+              triggerHaptic('light');
+              setShowPeerProfile(true);
+            }}
+            className="flex items-center gap-2.5 cursor-pointer hover:opacity-85 transition-opacity min-w-0 select-none"
+            title="View Scholar Profile & Revision Notes"
+          >
+            <div className="relative shrink-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#c2652a]/15 text-[#c2652a] flex items-center justify-center font-bold text-sm border border-[#c2652a]/20">
+                {otherUser.fullName.charAt(0).toUpperCase()}
+              </div>
+              <span
+                className={`absolute bottom-0 right-0 w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border-2 border-white ${
+                  isPeerOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'
+                }`}
+              />
             </div>
-            {isPeerOnline && (
-              <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white rounded-full" />
-            )}
-          </div>
 
-          <div className="min-w-0">
-            <h2 className="font-serif text-base font-bold text-[#2b2118] truncate leading-tight">
-              {otherUser.fullName}
-            </h2>
-            <div className="flex items-center gap-1.5 text-[11px] text-[#6e5a49]">
-              <span className="truncate">{otherUser.targetExam || 'Scholar'}</span>
-              <span>•</span>
-              <span className={isPeerOnline ? 'text-emerald-700 font-semibold' : 'text-[#6e5a49]'}>
-                {isPeerOnline ? 'Online' : 'Offline'}
-              </span>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1">
+                <h2 className="font-serif text-sm sm:text-base font-bold text-[#2b2118] truncate leading-tight">
+                  {otherUser.fullName}
+                </h2>
+                <span className="material-symbols-outlined text-[13px] text-[#c2652a]">verified</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[11px] text-[#6e5a49]">
+                <span className="truncate max-w-[120px] sm:max-w-none">
+                  {otherUser.targetExam || 'Scholar'}
+                </span>
+                <span>•</span>
+                <span
+                  className={
+                    isPeerOnline
+                      ? 'text-emerald-700 font-bold flex items-center gap-1'
+                      : 'text-[#6e5a49]'
+                  }
+                >
+                  {isPeerOnline ? (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 inline-block animate-pulse" />
+                      <span>Active now</span>
+                    </>
+                  ) : (
+                    'Last seen recently'
+                  )}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Action Controls & UGC Safety Menu */}
-        <div className="flex items-center gap-1 shrink-0">
-          {/* Future Call Readiness: Voice & Video Icons */}
+        <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+          {/* Peer Voice Call */}
           <button
             type="button"
             onClick={() => handleCallClick('voice')}
@@ -234,6 +280,8 @@ export function ChatThread({
           >
             <span className="material-symbols-outlined text-[20px]">call</span>
           </button>
+
+          {/* Peer Video Call */}
           <button
             type="button"
             onClick={() => handleCallClick('video')}
@@ -260,9 +308,20 @@ export function ChatThread({
                   type="button"
                   onClick={() => {
                     setShowActionMenu(false);
+                    setShowPeerProfile(true);
+                  }}
+                  className="w-full text-left px-3.5 py-2 text-xs text-[#2b2118] hover:bg-[#faf5ee] flex items-center gap-2 font-medium"
+                >
+                  <span className="material-symbols-outlined text-[16px] text-[#c2652a]">account_circle</span>
+                  <span>View Scholar Profile</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowActionMenu(false);
                     setShowReportModal(true);
                   }}
-                  className="w-full text-left px-3.5 py-2.5 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium"
+                  className="w-full text-left px-3.5 py-2 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium border-t border-[#e8dccb]/40"
                 >
                   <span className="material-symbols-outlined text-[16px]">flag</span>
                   <span>Report User / Message</span>
@@ -273,7 +332,7 @@ export function ChatThread({
                     setShowActionMenu(false);
                     setShowBlockModal(true);
                   }}
-                  className="w-full text-left px-3.5 py-2.5 text-xs text-red-700 hover:bg-red-50 flex items-center gap-2 font-medium border-t border-[#e8dccb]/40"
+                  className="w-full text-left px-3.5 py-2 text-xs text-red-700 hover:bg-red-50 flex items-center gap-2 font-medium border-t border-[#e8dccb]/40"
                 >
                   <span className="material-symbols-outlined text-[16px]">block</span>
                   <span>Block User</span>
@@ -294,7 +353,7 @@ export function ChatThread({
       )}
 
       {/* Messages Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-2 text-[#6e5a49]">
             <div className="w-12 h-12 rounded-full bg-[#e8dccb]/40 flex items-center justify-center text-[#c2652a]">
@@ -319,7 +378,7 @@ export function ChatThread({
                 className={`flex flex-col ${isMe ? 'items-end' : 'items-start'} animate-in fade-in duration-150`}
               >
                 <div
-                  className={`max-w-[78%] sm:max-w-md px-4 py-2.5 rounded-2xl shadow-xs text-xs leading-relaxed relative ${
+                  className={`max-w-[82%] sm:max-w-md px-4 py-2.5 rounded-2xl shadow-xs text-xs leading-relaxed relative ${
                     isMe
                       ? 'bg-[#c2652a] text-[#ffffff] rounded-br-xs'
                       : 'bg-[#ffffff] text-[#2b2118] border border-[#e8dccb] rounded-bl-xs'
@@ -366,10 +425,10 @@ export function ChatThread({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Message Composer */}
+      {/* Message Composer (Docked at Bottom with Safe Area Insets) */}
       <form
         onSubmit={handleSend}
-        className="p-3 bg-[#ffffff] border-t border-[#e8dccb] flex items-center gap-2"
+        className="p-2.5 sm:p-3 bg-[#ffffff] border-t border-[#e8dccb] flex items-center gap-2 pb-[max(env(safe-area-inset-bottom,0px),12px)] shrink-0 z-10 shadow-xs"
       >
         <input
           type="text"
@@ -382,11 +441,19 @@ export function ChatThread({
         <button
           type="submit"
           disabled={!inputText.trim() || isSending}
-          className="w-9 h-9 rounded-full bg-[#c2652a] text-white flex items-center justify-center shrink-0 shadow-xs hover:bg-[#a8521e] disabled:opacity-40 transition-all active:scale-95"
+          className="w-10 h-10 rounded-full bg-[#c2652a] text-white flex items-center justify-center shrink-0 shadow-xs hover:bg-[#a8521e] disabled:opacity-40 transition-all active:scale-95"
         >
           <span className="material-symbols-outlined text-[18px]">send</span>
         </button>
       </form>
+
+      {/* Peer Scholar Profile Modal */}
+      <PeerProfileModal
+        isOpen={showPeerProfile}
+        onClose={() => setShowPeerProfile(false)}
+        peerUser={otherUser}
+        isOnline={isPeerOnline}
+      />
 
       {/* UGC Report Modal */}
       <ReportUserModal
